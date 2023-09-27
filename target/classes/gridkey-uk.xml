@@ -1,0 +1,950 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:sockets="http://www.mulesoft.org/schema/mule/sockets"
+	
+xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" 
+xmlns:validation="http://www.mulesoft.org/schema/mule/validation" 
+xmlns:java="http://www.mulesoft.org/schema/mule/java" 
+xmlns="http://www.mulesoft.org/schema/mule/core" 
+xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" 
+xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd 
+http://www.mulesoft.org/schema/mule/core 
+http://www.mulesoft.org/schema/mule/core/current/mule.xsd 
+http://www.mulesoft.org/schema/mule/http 
+http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/mule-apikit 
+http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd
+http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
+http://www.mulesoft.org/schema/mule/sockets http://www.mulesoft.org/schema/mule/sockets/current/mule-sockets.xsd">
+    <http:listener-config name="gridkey-uk-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="9091" />
+    </http:listener-config>
+    <apikit:config name="gridkey-uk-config" api="api/gridkey-uk.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <validation:config name="Validation_Config-uk" doc:name="Validation Config" doc:id="bb44589b-1319-43ca-8a8b-d21e3c3b2b33" />
+	<sockets:request-config name="Sockets_Request_config" doc:name="Sockets Request config" doc:id="944ebed4-1ef0-41d2-962e-4f50ffc63cf3" >
+		<sockets:udp-requester-connection host="#[vars.transactionRetrieveUnitDetails.unitIP]" port="#[vars.transactionRetrieveUnitDetails.unitPort]" />
+	</sockets:request-config>
+	<flow name="gridkey-uk-main">
+        <http:listener config-ref="gridkey-uk-httpListenerConfig" path="/*">
+        </http:listener>
+		<java:new constructor="CassandraConnectorObjectCacheManager()" doc:name="CassandraConnectorObjectCacheManager" doc:id="a9b3c8f9-47ac-429b-9d5c-d10557afef8f" class="uk.co.gridkey.datacentre.db.CassandraConnectorObjectCacheManager" target="cassandraConnectorObjectCacheManager" />
+		<java:invoke method="onCall()" doc:name="Cassandra Connector Ehcache Interceptor" doc:id="544be676-5e79-466f-a2a1-17ac7ba21e50" instance="#[vars.cassandraConnectorObjectCacheManager]" class="uk.co.gridkey.datacentre.db.CassandraConnectorObjectCacheManager" target="cassConnection"/>
+		<validation:is-true doc:name="Filter favicon" doc:id="d50f1dbd-6614-4413-86f1-e4599fba845f" config-ref="Validation_Config-uk" expression="#[attributes.requestUri != '/favicon.ico']" />
+		<apikit:router config-ref="gridkey-uk-config" />
+		<error-handler>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - 400" doc:id="62ba76ca-2207-431a-9890-6bc658f83379" type="APIKIT:BAD_REQUEST" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="238e3f72-1183-43fc-b873-fa588f2b4b43" variableName="Content-Type" />
+				<set-payload value='#["message": "Bad request"]' doc:name="Set Payload" doc:id="72eccddf-179f-4662-be88-3e4362f8f8e6" />
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - 404" doc:id="3d7effed-2085-4f70-9847-d7d7b1910114" type="APIKIT:NOT_FOUND" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="1c0aa46b-280f-4022-a40a-90e250056652" variableName="Content-Type" />
+				<set-payload value='#["message": "Resource not found"]' doc:name="Set Payload" doc:id="6adb8c3c-86dc-4b12-a935-fe3afcd63cdf" />
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - 405" doc:id="c28b3b8a-e449-477c-ba97-a20e202e606a" type="APIKIT:METHOD_NOT_ALLOWED" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="b87a9b9e-f4e7-4b63-87e6-ee87f1b1cca8" variableName="Content-Type" />
+				<set-payload value='#["message": "Method not allowed"]' doc:name="Set Payload" doc:id="0c98707b-7c83-4039-9454-bd1a6063e6d1" />
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - 406" doc:id="ffcf3fd9-83dd-4295-a8d3-ecc0f4d25c0c" type="APIKIT:NOT_ACCEPTABLE" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="9befe75c-99cf-4865-b3a6-c1aa925eacae" variableName="Content-Type" />
+				<set-payload value='#["message": "Not acceptable"]' doc:name="Set Payload" doc:id="42adb8ce-5735-44e0-b878-6cfd3f0fa94b" />
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate -415" doc:id="dea47874-c0f9-41aa-bee6-331754505e5e" type="APIKIT:UNSUPPORTED_MEDIA_TYPE" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="e07c16b4-ed98-4f8a-a0d9-81c36c6a90c0" variableName="Content-Type" />
+				<set-payload value='#["message": "Unsupported media type"]' doc:name="Set Payload" doc:id="a4377d17-d60f-4a63-b05e-b953b38ec1ee" />
+			</on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="gridkey-uk-console">
+        <http:listener config-ref="gridkey-uk-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="gridkey-uk-config" />
+		<error-handler>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - 404" doc:id="095e2535-15ad-40cf-9fda-d25a8b077e03" type="APIKIT:NOT_FOUND" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="213c169a-364a-4570-8234-6be002f0793f" variableName="Content-Type" />
+				<set-payload value='#["message": "Resource not found"]' doc:name="Set Payload" doc:id="554473fb-b972-485f-9846-8ebb52739622" />
+			</on-error-propagate>
+        </error-handler>
+    </flow>
+	<flow name="get:\v2:gridkey-uk-config">
+		<java:new doc:name="DescribeKeyspacesDecoder" doc:id="d0866aad-404f-45cc-bca4-808fb94560f6" class="uk.co.gridkey.api.DescribeKeyspacesDecoder" constructor="DescribeKeyspacesDecoder()" target="describeKeyspacesDecoder"/>
+		<java:invoke doc:name="Get list of keyspaces and format as JSON" doc:id="e62355f1-af02-4a53-9ae9-3200071f7ce9" instance="#[vars.describeKeyspacesDecoder]" class="uk.co.gridkey.api.DescribeKeyspacesDecoder" method="onCall(java.util.Map)" outputMimeType="application/json">
+			<java:args ><![CDATA[#[{
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="de4aea4f-89c5-4475-8bff-2cf10395d9d6" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="bca22580-586e-405f-8d01-590df30d493a" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="3a4e93af-4b97-45b7-b2d6-e9447b9c95ac" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="get:\v2\(dno):gridkey-uk-config">
+		<logger level="INFO" doc:name="Logger" doc:id="26f6ecea-b5b3-45e7-b836-92e4e652a403" message="#[attributes.uriParams.dno]" />
+		<java:new constructor="McuListDataJSONFormatter()" doc:name="McuListDataJSONFormatter" doc:id="54543332-7f05-45ad-aabb-a76325205833" class="uk.co.gridkey.api.McuListDataJSONFormatter" target="mcuListDataJSONFormatter" />
+		<java:invoke doc:name="Get MCU List" doc:id="e0b92ce9-3615-4c67-8f07-1b1e65db7bfe" instance="#[vars.mcuListDataJSONFormatter]" class="uk.co.gridkey.api.McuListDataJSONFormatter" method="onCall(java.util.Map,java.util.Map)" outputMimeType="application/json">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="4721ed25-ae87-4857-bf27-9b75ca1dfbf1" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="a649a806-6089-460e-83e3-2160e899a985" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="a743ea9e-c6b4-435a-b293-f4f51e91b945" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="get:\v2\(dno)\dashboard:gridkey-uk-config">
+		<java:new constructor="DashboardDataAllMcusJSONFormatter()" doc:name="DashboardDataAllMcusJSONFormatter" doc:id="69ea6ec8-5d24-4624-a7cc-61302183d71a" class="uk.co.gridkey.api.DashboardDataAllMcusJSONFormatter" target="dashboardDataAllMcusJSONFormatter" />
+		<java:invoke method="onCall(java.util.Map,java.util.Map)" doc:name="Get All MCU Dashboard Data" doc:id="7e2ae72f-bd0b-4289-8810-81ad438d2add" instance="#[vars.dashboardDataAllMcusJSONFormatter]" class="uk.co.gridkey.api.DashboardDataAllMcusJSONFormatter" outputMimeType="application/json">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="8346d9be-59e0-4cd8-bbdb-e0b9e9eda802" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="45b580ee-bca6-4507-8536-197e906a1450" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="070fe751-6742-43c1-a896-0b952386b6db" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="get:\v2\(dno)\dashboard\(mcu):gridkey-uk-config">
+		<java:new constructor="DashboardDataSpecificMcuJSONFormatter()" doc:name="DashboardDataSpecificMcuJSONFormatter" doc:id="57b7e503-9ece-4f01-83ba-41022704c0d5" class="uk.co.gridkey.api.DashboardDataSpecificMcuJSONFormatter" target="dashboardDataSpecificMcuJSONFormatter" />
+		<java:invoke method="onCall(java.util.Map,java.util.Map)" doc:name="Get Specific MCU Dashboard Data" doc:id="05bfe763-96f7-4e22-ab5e-8f8abca645b7" instance="#[vars.dashboardDataSpecificMcuJSONFormatter]" class="uk.co.gridkey.api.DashboardDataSpecificMcuJSONFormatter" outputMimeType="application/json">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="7317a31f-ded7-42b6-af6f-291866a92119" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="58494d4c-cf4a-48d2-ba09-2aa3fb14f946" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="645ba7d6-f3a7-4627-a7da-14bb586aae1b" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="get:\v2\(dno)\(mcu):gridkey-uk-config">
+		<java:new constructor="McuDetailsJSONFormatter()" doc:name="McuDetailsJSONFormatter" doc:id="58338313-86b8-49f4-98b2-4ef041058f90" class="uk.co.gridkey.api.McuDetailsJSONFormatter" target="mcuDetailsJSONFormatter" />
+		<java:invoke method="onCall(java.util.Map,java.util.Map)" doc:name="Get MCU Details" doc:id="8cb80968-e153-4f6f-af81-8b71e898bb86" instance="#[vars.mcuDetailsJSONFormatter]" class="uk.co.gridkey.api.McuDetailsJSONFormatter" outputMimeType="application/json">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="3a897e73-de58-4046-aa4c-09309b33e461" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="10e3a810-b980-48f3-aaf2-427c36778c86" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="8847b981-3d76-462d-a617-a6376fe54c30" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="get:\v2\(dno)\(mcu)\config\(type)\now:gridkey-uk-config">
+		<java:new doc:name="LatestMessageExtractQueryContents" doc:id="9ab4eb0a-9295-4f1c-9fd8-438cfb152640" target="newLatestMessageExtractQueryContents" class="uk.co.gridkey.api.LatestMessageExtractQueryContents" constructor="LatestMessageExtractQueryContents()"/>
+		<java:invoke doc:name="Get data from the database" doc:id="e684ad56-d20c-48ea-b57a-991f2212a01f" instance="#[vars.newLatestMessageExtractQueryContents]" class="uk.co.gridkey.api.LatestMessageExtractQueryContents" method="onCall(java.util.Map,java.util.Map)" target="latestMessageExtractQueryContents">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<choice doc:name="Check Message Validity" doc:id="80755525-1950-40c9-aee3-564411a32620" >
+			<when expression="#[vars.latestMessageExtractQueryContents.valid==true]">
+				<java:new doc:name="JsonFileCacheManager" doc:id="dd32d33f-eb9a-4ef8-a189-7679988ec6c4" target="newJsonFileCacheManager" class="uk.co.gridkey.api.JsonFileCacheManager" constructor="JsonFileCacheManager()">
+				</java:new>
+				<java:invoke doc:name="Json File Ehcache Interceptor" doc:id="24e780e5-ff00-41f6-aac4-9b11a07a98a0" instance="#[vars.newJsonFileCacheManager]" class="uk.co.gridkey.api.JsonFileCacheManager" method="onCall(java.util.Map)" target="jsonFileCacheManager">
+					<java:args ><![CDATA[#[{
+	latestMessageExtractQueryContents:vars.latestMessageExtractQueryContents
+}]]]></java:args>
+				</java:invoke>
+				<java:new doc:name="LatestMessageJSONFormatter" doc:id="8ac32939-c97f-46f2-bea5-cef095fd40eb" class="uk.co.gridkey.api.LatestMessageJSONFormatter" constructor="LatestMessageJSONFormatter()" target="newLatestMessageJSONFormatter"/>
+				<java:invoke doc:name="Format Data as JSON" doc:id="0bcbf48e-2852-49c1-b0e1-2000c8a51058" instance="#[vars.newLatestMessageJSONFormatter]" class="uk.co.gridkey.api.LatestMessageJSONFormatter" method="onCall(java.util.Map,java.util.Map,java.util.Map)" outputMimeType="application/json">
+					<java:args ><![CDATA[#[{
+	latestMessageExtractQueryContents:vars.latestMessageExtractQueryContents,
+	jsonFileCacheManager:vars.jsonFileCacheManager,
+	uriAttributes:attributes.uriParams,
+	}]]]></java:args>
+				</java:invoke>
+			</when>
+			<otherwise >
+				<set-payload value="{}" doc:name="Set Payload to {}" doc:id="dcb6e5c2-71ec-4f22-86af-25c0d17d6136" />
+			</otherwise>
+		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="262ef749-b588-4589-99ce-c9990d845c41" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="e3b044c5-146a-4a81-a0f7-097fa6f6aa46" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="ac9e2860-64a8-4cfc-86f3-e2442dd352c8" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="get:\v2\(dno)\(mcu)\config\(type)\now\raw:gridkey-uk-config">
+		<java:new constructor="LatestMessageExtractQueryContents()" doc:name="LatestMessageExtractQueryContents" doc:id="4202215d-c43c-4e82-9109-523755b365cb" class="uk.co.gridkey.api.LatestMessageExtractQueryContents" target="newLatestMessageExtractQueryContents" />
+		<java:invoke method="onCall(java.util.Map,java.util.Map)" doc:name="Get data from the database" doc:id="0355dff9-8d40-4a59-acad-640c5fb46b07" instance="#[vars.newLatestMessageExtractQueryContents]" class="uk.co.gridkey.api.LatestMessageExtractQueryContents" target="latestMessageExtractQueryContents" >
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<choice doc:name="Check Message Validity" doc:id="0d3bcacb-cc3a-4a19-b8f3-20183af75fef" >
+			<when expression="#[vars.latestMessageExtractQueryContents.valid==true]" >
+				<java:new constructor="LatestMessageRawJSONFormatter()" doc:name="LatestMessageRawJSONFormatter" doc:id="d8cf860d-2105-4d0b-a79c-adba4f8d5c8f" class="uk.co.gridkey.api.LatestMessageRawJSONFormatter" target="newLatestMessageRawJSONFormatter" />
+				<java:invoke method="onCall(java.util.Map,java.util.Map)" doc:name="Format Data as JSON" doc:id="8e4a330a-3e11-430d-8840-377d2805ed07" instance="#[vars.newLatestMessageRawJSONFormatter]" class="uk.co.gridkey.api.LatestMessageRawJSONFormatter" outputMimeType="application/json">
+					<java:args ><![CDATA[#[{
+	latestMessageExtractQueryContents:vars.latestMessageExtractQueryContents,
+	uriAttributes:attributes.uriParams,
+}]]]></java:args>
+				</java:invoke>
+			</when>
+			<otherwise >
+				<set-payload value="{}" doc:name="Set Payload to {}" doc:id="6360a868-ae2b-4f72-adf3-bd4d93516157" />
+			</otherwise>
+		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="af4dfea9-f932-4da0-b655-777114418b7e" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="7290cc58-2581-4846-833e-44eddfece182" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="7b83b91f-a561-4e93-b849-5b71c8a9a562" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="get:\v2\(dno)\(mcu)\decoded\(start)\(end)\(params):gridkey-uk-config">
+		<java:new doc:name="DecodedMessageDataJSONFormatter" doc:id="6d4291db-d094-460b-90d9-78c8abd425b6" target="newDecodedMessageDataJSONFormatter" class="uk.co.gridkey.api.DecodedMessageDataJSONFormatter" constructor="DecodedMessageDataJSONFormatter()"/>
+		<java:invoke doc:name="Get data and format as JSON" doc:id="6e1c2cf9-68c0-499a-bdb2-999b987b94b1" instance="#[vars.newDecodedMessageDataJSONFormatter]" class="uk.co.gridkey.api.DecodedMessageDataJSONFormatter" method="onCall(java.util.Map,java.util.Map)" outputMimeType="application/json">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="568792e4-ef04-40c5-b284-7ed1faa14268" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="c0f35461-b7a7-48a4-9041-003197451618" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="d6641d20-7319-478f-9b0f-e22a46ee33be" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="get:\v2\(dno)\(mcu)\raw\(date)\(type):gridkey-uk-config">
+		<java:new constructor="RawMessageDataJSONFormatter()" doc:name="RawMessageDataJSONFormatter" doc:id="54940a83-3c3e-4ed3-9d9d-1901961a28aa" class="uk.co.gridkey.api.RawMessageDataJSONFormatter" target="rawMessageDataJSONFormatter" />
+		<java:invoke method="onCall(java.util.Map,java.util.Map)" doc:name="Get data and format as JSON" doc:id="05d7fcf3-894a-4797-85b3-03ad5a75ba4a" instance="#[vars.rawMessageDataJSONFormatter]" class="uk.co.gridkey.api.RawMessageDataJSONFormatter" outputMimeType="application/json">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="37590e7c-b295-4cf9-9eed-c4753e611459" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="d9f452e6-f94d-48f2-8d63-be9b2a591212" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="8797ff7f-0c79-44a2-981b-1d06ced793a7" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="get:\v2\(dno)\(mcu)\visualisation\(type)\(date):gridkey-uk-config">
+		<java:new doc:name="HistogramDataJSONFormatter" doc:id="7b301194-af51-43e6-94ad-8c1e400a83dc" class="uk.co.gridkey.api.HistogramDataJSONFormatter" constructor="HistogramDataJSONFormatter()" target="newHistogramDataJSONFormatter"/>
+		<java:invoke doc:name="Get data and format as JSON" doc:id="c56dbe80-d303-4fd9-b422-c00bc49bda0c" instance="#[vars.newHistogramDataJSONFormatter]" class="uk.co.gridkey.api.HistogramDataJSONFormatter" method="onCall(java.util.Map,java.util.Map)" outputMimeType="application/json">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="365c6615-2b49-4445-abc4-51bbbd8e51a1" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="5a2b1dc0-2518-4713-83ae-1c0963a7f825" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="624c2b92-266d-4e5b-afb0-953483f6ebb7" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="get:\v2\(dno)\(mcu)\analytics\(start)\(end)\(type):gridkey-uk-config">
+		<java:new doc:name="AnalyticDataJSONFormatter" doc:id="df5888c7-f6b3-4e25-a468-2a0f7d29661c" class="uk.co.gridkey.api.AnalyticDataJSONFormatter" constructor="AnalyticDataJSONFormatter()" target="newAnalyticDataJSONFormatter"/>
+		<java:invoke doc:name="Get data and format as JSON" doc:id="cc9e2542-7d33-4989-a091-8f72420cda73" instance="#[vars.newAnalyticDataJSONFormatter]" class="uk.co.gridkey.api.AnalyticDataJSONFormatter" method="onCall(java.util.Map,java.util.Map)" outputMimeType="application/json">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="d8bf53a3-ac0f-4da6-ba3e-393b76de4217" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="3e3e69d1-cef9-451f-bec5-08dc103f6374" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="6b961e7b-25a0-445f-b56a-7012d3d09d8e" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="get:\v2\(dno)\(mcu)\dtf\(date):gridkey-uk-config">
+		<java:new doc:name="DTFWaveformRowKeyListConstructor" doc:id="dc9b51fb-5860-4ec5-a652-61938e8c9b70" class="uk.co.gridkey.api.DTFWaveformRowKeyListConstructor" constructor="DTFWaveformRowKeyListConstructor()" target="newDTFWaveformRowKeyListConstructor"/>
+		<java:invoke doc:name="Construct Session Parameters" doc:id="ad8b617c-1c10-4aea-b439-2dea12db5d44" instance="#[vars.newDTFWaveformRowKeyListConstructor]" class="uk.co.gridkey.api.DTFWaveformRowKeyListConstructor" method="onCall(java.util.Map)" target="dTFWaveformRowKeyListConstructor">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+}]]]></java:args>
+		</java:invoke>
+		<java:new doc:name="DTFWaveformJSONFormatter" doc:id="a509eb92-eaa3-4330-8975-60b99fc093e8" class="uk.co.gridkey.api.DTFWaveformJSONFormatter" constructor="DTFWaveformJSONFormatter()" target="newDTFWaveformJSONFormatter"/>
+		<java:invoke doc:name="Get data and format as JSON" doc:id="4e86ce2e-136b-4c3c-93a7-5f222622e7f8" instance="#[vars.newDTFWaveformJSONFormatter]" class="uk.co.gridkey.api.DTFWaveformJSONFormatter" method="onCall(java.util.Map)" outputMimeType="application/json">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+}]]]></java:args>
+		</java:invoke>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="7233dae4-1c11-4443-8904-abefe260e42d" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="8b0aa7e6-1949-4bba-9d09-b7d7bb6a99cd" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="bb51fd46-001c-4e2c-b8db-4fe6d4f5b215" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="get:\v2\(dno)\(mcu)\available\(year):gridkey-uk-config">
+		<java:new constructor="DataAvailableYearlyJSONFormatter()" doc:name="DataAvailableYearlyJSONFormatter" doc:id="afdaecc5-9af0-4c12-aa2a-ae43a0e2caec" class="uk.co.gridkey.api.DataAvailableYearlyJSONFormatter" target="dataAvailableYearlyJSONFormatter" />
+		<java:invoke method="onCall(java.util.Map,java.util.Map)" doc:name="Get data and format as JSON" doc:id="c9352cd5-e171-4cef-af03-981d33246611" instance="#[vars.dataAvailableYearlyJSONFormatter]" class="uk.co.gridkey.api.DataAvailableYearlyJSONFormatter" outputMimeType="application/json">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="581cd06c-9542-47bb-859a-dc1c5192be95" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="df486318-aad6-4e68-a91f-d637b3bb007f" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="00ac6c4b-3759-46b1-900d-7888173f64fa" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="get:\v2\(dno)\(mcu)\available\(year)\(month):gridkey-uk-config">
+		<java:new constructor="DataAvailableMonthlyJSONFormatter()" doc:name="DataAvailableMonthlyJSONFormatter" doc:id="a141cc90-ba0f-48ca-886d-205b0ce82b14" class="uk.co.gridkey.api.DataAvailableMonthlyJSONFormatter" target="dataAvailableMonthlyJSONFormatter" />
+		<java:invoke method="onCall(java.util.Map,java.util.Map)" doc:name="Get data and format as JSON" doc:id="9e692d95-6455-4d4c-b4e1-8c8035e2db9c" instance="#[vars.dataAvailableMonthlyJSONFormatter]" class="uk.co.gridkey.api.DataAvailableMonthlyJSONFormatter" outputMimeType="application/json">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="6283fdc0-4c7c-4f7d-9b6a-eeefda9798c0" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="bd50c568-88a7-4310-812e-1c3de5198183" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="99df4b03-84ba-4671-becb-6db4c01d1cf6" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="post:\v2\(dno)\(mcu)\config\(type)\send:gridkey-uk-config">
+		<java:new doc:name="CheckConfigExistsOnFileSystem" doc:id="9c6ef9c5-4251-4fe2-bbb0-fb26a43011d1" class="uk.co.gridkey.api.CheckConfigExistsOnFileSystem" constructor="CheckConfigExistsOnFileSystem()" target="newCheckConfigExistsOnFileSystem"/>
+		<java:invoke doc:name="Check if File Exists" doc:id="101cdc9f-3dd9-4972-9ba6-f0778d9eef6d" instance="#[vars.newCheckConfigExistsOnFileSystem]" class="uk.co.gridkey.api.CheckConfigExistsOnFileSystem" method="onCall(java.util.Map)" target="checkConfigExistsOnFileSystem">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+}]]]></java:args>
+		</java:invoke>
+		<choice doc:name="Does File Exist?" doc:id="e3d4378d-77fe-404c-b775-59c122bdd2ab" >
+			<when expression="#[vars.checkConfigExistsOnFileSystem.fileExists]">
+				<java:new doc:name="TransactionRetrieveUnitDetails" doc:id="8ff6758e-3c48-438c-a97a-776b598a347d" class="uk.co.gridkey.api.TransactionRetrieveUnitDetails" constructor="TransactionRetrieveUnitDetails()" target="newTransactionRetrieveUnitDetails"/>
+				<java:invoke doc:name="Get Required Details from Index" doc:id="f52994a7-d5d3-462e-aba7-5e78c6fb5481" instance="#[vars.newTransactionRetrieveUnitDetails]" class="uk.co.gridkey.api.TransactionRetrieveUnitDetails" method="onCall(java.util.Map,java.util.Map)" target="transactionRetrieveUnitDetails">
+					<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+				</java:invoke>
+				<choice doc:name="Got Required Details?" doc:id="c2f00eee-1bc0-4ecb-977f-6e1ec2c77da4" >
+					<when expression="#[vars.transactionRetrieveUnitDetails.result]">
+						<java:new doc:name="ConstructConfigTransactionRequest" doc:id="3b6fcbfe-214c-405c-8183-1b68665d60ac" class="uk.co.gridkey.api.ConstructConfigTransactionRequest" constructor="ConstructConfigTransactionRequest()" target="newConstructConfigTransactionRequest">
+						</java:new>
+						<java:invoke doc:name="Construct Request String" doc:id="e2244f3e-d911-431b-9ab1-dbe05d417b54" instance="#[vars.newConstructConfigTransactionRequest]" class="uk.co.gridkey.api.ConstructConfigTransactionRequest" method="onCall(java.util.Map,java.util.Map,java.util.Map)">
+							<java:args ><![CDATA[#[{
+	checkConfigExistsOnFileSystem:vars.checkConfigExistsOnFileSystem,
+	transactionRetrieveUnitDetails:vars.transactionRetrieveUnitDetails,
+	uriAttributes:attributes.uriParams
+}]]]></java:args>
+						</java:invoke>
+						<sockets:send doc:name="Send Command to MCU" doc:id="5c524112-a22a-47eb-ba0b-5a38f7575f61" config-ref="Sockets_Request_config"/>
+						<set-payload value="success" doc:name="Set Result to Success" doc:id="dc87d3d2-65ac-4e6f-ab19-12faca0468f3" />
+					</when>
+					<otherwise >
+						<set-payload value="error" doc:name="Set Result to Error" doc:id="96152f4f-7453-4cda-a7e2-f5ba62f64518" />
+					</otherwise>
+				</choice>
+			</when>
+			<otherwise >
+				<set-payload value="error" doc:name="Set Result to Error" doc:id="60d4390f-a89d-443c-87e7-620496eabf87" />
+			</otherwise>
+		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="530513d0-1151-456c-9d43-127c2408710c" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="cc686786-bdbf-4cc0-ab9a-d9dc6caa1dfb" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="507710cc-7d03-4eb8-b056-395d4d0507d3" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="post:\v2\(dno)\(mcu)\config\(type)\store:gridkey-uk-config">
+		<java:new doc:name="StoreConfigOnFileSystem" doc:id="b7961b70-7a72-45cf-9d64-d202dc786292" class="uk.co.gridkey.api.StoreConfigOnFileSystem" constructor="StoreConfigOnFileSystem()" target="storeConfigOnFileSystem"/>
+		<java:invoke doc:name="Store Config Data to Filesystem" doc:id="85e32301-ea65-45c1-896c-e8110d6c698b" instance="#[vars.storeConfigOnFileSystem]" class="uk.co.gridkey.api.StoreConfigOnFileSystem" method="onCall(java.util.Map,java.lang.Object)">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	payload:payload
+}]]]></java:args>
+		</java:invoke>
+		<set-payload value="success" doc:name="Set Result to Success" doc:id="a7197d65-6eb9-4bc7-9c37-84d95720d6e5" />
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="ca10e2f7-3e00-45d1-a222-2691fc89c9cd" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="f7598fb3-d4f4-47f3-8ed6-a525348861d4" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="4d17ff44-5ceb-4eef-88fa-3e53ab97c291" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="post:\v2\(dno)\(mcu)\transaction\(type)\send:gridkey-uk-config">
+		<java:new doc:name="ValidateTransactionRequest" doc:id="7e7269dc-bc5a-4dbe-942f-1606999d63df" class="uk.co.gridkey.api.ValidateTransactionRequest" constructor="ValidateTransactionRequest()" target="newValidateTransactionRequest"/>
+		<java:invoke doc:name="Validate Transaction Request" doc:id="149ebae9-dc9a-47d3-8418-2845642510be" instance="#[vars.newValidateTransactionRequest]" class="uk.co.gridkey.api.ValidateTransactionRequest" method="onCall(java.util.Map)" target="validateTransactionRequest">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+}]]]></java:args>
+		</java:invoke>
+		<choice doc:name="Is Transaction Valid?" doc:id="a64b9968-3f24-4909-9574-d7bc39e14dec" >
+			<when expression="#[vars.validateTransactionRequest.result]">
+				<java:new constructor="TransactionRetrieveUnitDetails()" doc:name="TransactionRetrieveUnitDetails" doc:id="e84d273b-b40b-4bec-8dbc-33a5bd5ec3d8" class="uk.co.gridkey.api.TransactionRetrieveUnitDetails" target="newTransactionRetrieveUnitDetails" />
+				<java:invoke method="onCall(java.util.Map,java.util.Map)" doc:name="Get Required Details from Index" doc:id="1bc15fff-79d5-447b-b366-66103bee137a" instance="#[vars.newTransactionRetrieveUnitDetails]" class="uk.co.gridkey.api.TransactionRetrieveUnitDetails" target="transactionRetrieveUnitDetails" >
+					<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+				</java:invoke>
+				<choice doc:name="Got Required Details?" doc:id="afef57b0-ac19-4541-a51a-e053e4f280ac" >
+					<when expression="#[vars.transactionRetrieveUnitDetails.result]">
+						<java:new doc:name="ConstructMCU520TransactionRequest" doc:id="f915c8c6-b561-4a26-8f88-12e2f5125b8f" class="uk.co.gridkey.api.ConstructMCU520TransactionRequest" target="newConstructMCU520TransactionRequest" constructor="ConstructMCU520TransactionRequest()"/>
+						<java:invoke doc:name="Construct Transaction Request String" doc:id="0fa8c8c5-7105-4af9-9fcb-6955ca8bb1c9" instance="#[vars.newConstructMCU520TransactionRequest]" class="uk.co.gridkey.api.ConstructMCU520TransactionRequest" method="onCall(java.util.Map,java.util.Map)">
+							<java:args ><![CDATA[#[{
+	validateTransactionRequest:vars.validateTransactionRequest,
+	transactionRetrieveUnitDetails:vars.transactionRetrieveUnitDetails
+}]]]></java:args>
+						</java:invoke>
+						<sockets:send doc:name="Send Command to MCU" doc:id="727bc189-4a53-43a3-9381-90fb1115e202" config-ref="Sockets_Request_config" />
+						<set-payload value="success" doc:name="Set Result to Success" doc:id="6978216e-dc41-4920-b11e-57a8e13b7127" />
+					</when>
+					<otherwise >
+						<set-payload value="error" doc:name="Set Result to Error" doc:id="281beba1-9c0c-4b50-9a41-1798405cae0c" />
+					</otherwise>
+				</choice>
+			</when>
+			<otherwise >
+				<set-payload value="error" doc:name="Set Result to Error" doc:id="416fea39-fb0f-4177-8a58-40b0504fe565" />
+			</otherwise>
+		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="54ec418e-67b5-44d2-918f-b86243455e53" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="35fa12b2-e1f5-49a6-8655-198a101b12b0" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="ed9fbb8f-f875-4186-9f37-cbafcb295d02" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="post:\v2\(dno)\(mcu)\transaction\(type)\params\send:gridkey-uk-config">
+		<java:new doc:name="ValidateTransactionRequestWithParams" doc:id="51c100ec-1548-4bc0-a3c3-d6c65b230785" class="uk.co.gridkey.api.ValidateTransactionRequestWithParams" constructor="ValidateTransactionRequestWithParams()" target="newValidateTransactionRequestWithParams"/>
+		<java:invoke doc:name="Validate Parameterised Transaction Request" doc:id="47d4fb2c-2a46-405c-93d7-0d77fdd7c484" instance="#[vars.newValidateTransactionRequestWithParams]" class="uk.co.gridkey.api.ValidateTransactionRequestWithParams" method="onCall(java.util.Map,java.lang.String)" target="validateTransactionRequestWithParams">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	payload:payload
+}]]]></java:args>
+		</java:invoke>
+		<choice doc:name="Is Transaction Valid?" doc:id="7bfe26ed-1413-4e91-ab0a-52854996c1bf" >
+			<when expression="#[vars.validateTransactionRequestWithParams.result]">
+				<java:new constructor="TransactionRetrieveUnitDetails()" doc:name="TransactionRetrieveUnitDetails" doc:id="1a6c3159-2d5b-45f1-a998-624abb672cc7" class="uk.co.gridkey.api.TransactionRetrieveUnitDetails" target="newTransactionRetrieveUnitDetails" />
+				<java:invoke method="onCall(java.util.Map,java.util.Map)" doc:name="Get Required Details from Index" doc:id="ab6be4c4-3425-4825-9a67-4e9c18486fbd" instance="#[vars.newTransactionRetrieveUnitDetails]" class="uk.co.gridkey.api.TransactionRetrieveUnitDetails" target="transactionRetrieveUnitDetails" >
+					<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+				</java:invoke>
+				<choice doc:name="Got Required Details?" doc:id="29a98091-02cd-495c-ba85-d48e8f442b58" >
+					<when expression="#[vars.transactionRetrieveUnitDetails.result]" >
+						<java:new doc:name="ConstructMCU520TransactionRequestWithParams" doc:id="493b6464-1264-4568-b5e9-c386c1497cbb" class="uk.co.gridkey.api.ConstructMCU520TransactionRequestWithParams" target="newConstructMCU520TransactionRequestWithParams" constructor="ConstructMCU520TransactionRequestWithParams()"/>
+						<java:invoke doc:name="Construct Parameterised Transaction Request String" doc:id="f16559c2-64b5-4dc7-ad10-2b730cfbba1d" instance="#[vars.newConstructMCU520TransactionRequestWithParams]" class="uk.co.gridkey.api.ConstructMCU520TransactionRequestWithParams" method="onCall(java.util.Map,java.util.Map,java.util.Map)">
+							<java:args ><![CDATA[#[{
+	validateTransactionRequest:vars.validateTransactionRequest,
+	transactionRetrieveUnitDetails:vars.transactionRetrieveUnitDetails
+}]]]></java:args>
+						</java:invoke>
+						<sockets:send doc:name="Send Command to MCU" doc:id="4a5e9520-48ce-4eb5-9de6-774e384db3a0" config-ref="Sockets_Request_config" />
+						<set-payload value="success" doc:name="Set Result to Success" doc:id="bc72fded-7b8b-46af-af24-24eddd9f142c" />
+					</when>
+					<otherwise >
+						<set-payload value="error" doc:name="Set Result to Error" doc:id="e439fb8d-b4b3-4bbf-a89c-f0a27140d755" />
+					</otherwise>
+				</choice>
+			</when>
+			<otherwise >
+				<set-payload value="error" doc:name="Set Result to Error" doc:id="1aea27b1-3594-4764-9f59-dc299e8f3ccf" />
+			</otherwise>
+		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="130cc9fa-8645-43ed-8bea-844058f9a455" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="213836ce-9d83-443f-8bee-6ec3bc083e04" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="a4a36791-2763-4341-a613-dab27d8e18d2" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="post:\v2\(dno)\(mcu)\transaction\preprepared\send:gridkey-uk-config">
+		<java:new constructor="TransactionRetrieveUnitDetails()" doc:name="TransactionRetrieveUnitDetails" doc:id="ee63c1cf-00b4-40ce-9014-db948cf34055" class="uk.co.gridkey.api.TransactionRetrieveUnitDetails" target="newTransactionRetrieveUnitDetails" />
+		<java:invoke method="onCall(java.util.Map,java.util.Map)" doc:name="Get Required Details from Index" doc:id="3addf5a6-9611-467c-80cf-ff85030e4d0c" instance="#[vars.newTransactionRetrieveUnitDetails]" class="uk.co.gridkey.api.TransactionRetrieveUnitDetails" target="transactionRetrieveUnitDetails" >
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<choice doc:name="Got Required Details?" doc:id="509e26e9-bda0-454d-8f7d-96e94f82c688" >
+			<when expression="#[vars.transactionRetrieveUnitDetails.transactionString contains 'GingerbreadLatte' and vars.transactionRetrieveUnitDetails.ipPortPresent]" >
+				<set-payload value="#[vars.transactionRetrieveUnitDetails.transactionString]" doc:name="Set Transaction String" doc:id="c907a2dd-2cd6-4d43-87e9-8c56cd56fd26" />
+				<sockets:send doc:name="Send Command to MCU" doc:id="eebcbed7-8a83-41b9-846c-ac81abbe5bd2" config-ref="Sockets_Request_config" />
+				<set-payload value="success" doc:name="Set Result to Success" doc:id="275da9a1-e53c-4204-9256-70d840059af6" />
+			</when>
+						<when expression="#[vars.transactionRetrieveUnitDetails.result]" >
+				<set-payload value='#[if (vars.transactionRetrieveUnitDetails.unlockCode != null and vars.transactionRetrieveUnitDetails.transactionString != null)&#10;  vars.transactionRetrieveUnitDetails.unlockCode ++ " " ++ vars.transactionRetrieveUnitDetails.transactionString&#10;else&#10;  ""]' doc:name="Set Transaction String with Unlock Code" doc:id="5b4e9edc-6739-47bc-aed7-caefe57f39ba" />
+				<sockets:send doc:name="Send Command to MCU" doc:id="bd28d19e-8ce9-4a76-9e56-af69ca5ceda4" config-ref="Sockets_Request_config" />
+				<set-payload value="success" doc:name="Set Result to Success" doc:id="c2bee5d0-41b6-4413-9b61-755eb7800c32" />
+						</when>
+			
+			<otherwise >
+				<set-payload value="error" doc:name="Set Result to Error" doc:id="1c5293b1-6e3b-438d-af36-7f0bde1442dd" />
+			</otherwise>
+		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="72a8fefa-6337-4d40-9fbb-aa06a1c59aed" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="b7101afd-9ded-494b-a870-55ed7ead2d4c" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="846af423-5865-4678-ba0d-b872b19f1ed6" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="post:\v2\(dno)\(mcu)\detailed\(day)\(time)\(duration)\send:gridkey-uk-config">
+		<java:new doc:name="ValidateDetailedDataRequest" doc:id="c11c689a-d488-40ec-a89e-1fd786cc0ce3" class="uk.co.gridkey.api.ValidateDetailedDataRequest" constructor="ValidateDetailedDataRequest()" target="newValidateDetailedDataRequest"/>
+		<java:invoke doc:name="Validate Detailed Data Request" doc:id="048d1619-1518-4f8a-a60e-722555e7cc81" instance="#[vars.newValidateDetailedDataRequest]" class="uk.co.gridkey.api.ValidateDetailedDataRequest" method="onCall(java.util.Map)" target="validateDetailedDataRequest">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+}]]]></java:args>
+		</java:invoke>
+		<choice doc:name="Is Request Valid?" doc:id="2079fc96-ca1b-42d4-be9d-794704ac0227" >
+			<when expression="#[vars.validateDetailedDataRequest.result]">
+				<java:new constructor="TransactionRetrieveUnitDetails()" doc:name="TransactionRetrieveUnitDetails" doc:id="17e28d20-a2dd-4eb4-b4b4-5d53ac3f9491" class="uk.co.gridkey.api.TransactionRetrieveUnitDetails" target="newTransactionRetrieveUnitDetails" />
+				<java:invoke method="onCall(java.util.Map,java.util.Map)" doc:name="Get Required Details from Index" doc:id="aa0e5973-c45f-49bf-bbcb-0098442ccdef" instance="#[vars.newTransactionRetrieveUnitDetails]" class="uk.co.gridkey.api.TransactionRetrieveUnitDetails" target="transactionRetrieveUnitDetails" >
+					<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+				</java:invoke>
+				<choice doc:name="Got Required Details?" doc:id="cfa36170-10cf-4e37-8a00-3a74880a2db8" >
+					<when expression="#[vars.transactionRetrieveUnitDetails.result]" >
+						<java:new doc:name="ConstructDetailedDataTransactionRequest" doc:id="216327f2-8f69-4398-b674-41e885964bec" class="uk.co.gridkey.api.ConstructDetailedDataTransactionRequest" target="newConstructDetailedDataTransactionRequest" constructor="ConstructDetailedDataTransactionRequest()"/>
+						<java:invoke doc:name="Construct Detailed Data Transaction Request String" doc:id="03cb95d9-fb0f-457c-84c9-6c95266f4d8f" instance="#[vars.newConstructDetailedDataTransactionRequest]" class="uk.co.gridkey.api.ConstructDetailedDataTransactionRequest" method="onCall(java.util.Map,java.util.Map)">
+							<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	validateDetailedDataRequest:vars.validateDetailedDataRequest
+}]]]></java:args>
+						</java:invoke>
+						<sockets:send doc:name="Send Command to MCU" doc:id="ad9735f7-486c-40b7-acc8-70ead9b64622" config-ref="Sockets_Request_config" />
+						<set-payload value="success" doc:name="Set Result to Success" doc:id="a9a59884-a9e0-4da0-aaff-53c09c6fee2e" />
+					</when>
+					<otherwise >
+						<set-payload value="error" doc:name="Set Result to Error" doc:id="bf84fc6f-bcca-40ce-9085-b33739295d7c" />
+					</otherwise>
+				</choice>
+			</when>
+			<otherwise >
+				<set-payload value="error" doc:name="Set Result to Error" doc:id="df0df1de-52f0-4602-98cd-915c43c31a45" />
+			</otherwise>
+		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="7af47de8-c13f-45e9-a796-3a2a960642f0" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="7ebf1461-c172-432a-bd19-2e0ac82dba6d" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="97094ff4-c153-429a-b5a9-e67852e7f8a6" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="get:\v2\(dno)\(mcu)\detailed\latest:gridkey-uk-config">
+		<java:new doc:name="DetailedDataRawJSONFormatter" doc:id="f51eb529-b760-42c7-b140-933625346378" class="uk.co.gridkey.api.DetailedDataRawJSONFormatter" constructor="DetailedDataRawJSONFormatter()" target="newDetailedDataRawJSONFormatter"/>
+		<java:invoke doc:name="Get Data and Format as JSON" doc:id="7ddee368-cebf-4939-a960-e218c12d84c6" instance="#[vars.newDetailedDataRawJSONFormatter]" class="uk.co.gridkey.api.DetailedDataRawJSONFormatter" method="onCall(java.util.Map)" outputMimeType="application/json">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+}]]]></java:args>
+		</java:invoke>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="4cc0191e-a1ca-4819-a420-13d1184b914a" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="5d45b35c-8989-40eb-b04d-49134dc599da" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="ff4d539f-3195-457b-bb02-96c491fae49d" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="get:\v2\(dno)\(mcu)\latest\(type):gridkey-uk-config">
+		<java:new constructor="LatestMessageExtractQueryContents()" doc:name="LatestMessageExtractQueryContents" doc:id="6e857d51-4108-4adb-aa5c-681441bc2ddf" class="uk.co.gridkey.api.LatestMessageExtractQueryContents" target="newLatestMessageExtractQueryContents" />
+		<java:invoke method="onCall(java.util.Map,java.util.Map)" doc:name="Get data from the database" doc:id="54b291a4-a1ac-427e-8707-d67b6fb9fafe" instance="#[vars.newLatestMessageExtractQueryContents]" class="uk.co.gridkey.api.LatestMessageExtractQueryContents" target="latestMessageExtractQueryContents" >
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<choice doc:name="Check Message Validity" doc:id="86727409-b15a-48fe-bf8e-1d2991d9b65f" >
+			<when expression="#[vars.latestMessageExtractQueryContents.valid==true]" >
+				<java:new constructor="JsonFileCacheManager()" doc:name="JsonFileCacheManager" doc:id="b68cc8c4-734c-4d01-b956-ade4c421add2" class="uk.co.gridkey.api.JsonFileCacheManager" target="newJsonFileCacheManager" />
+				<java:invoke method="onCall(java.util.Map)" doc:name="Json File Ehcache Interceptor" doc:id="3ff23cab-15d6-44fa-be74-2d1a5ee8f2d9" instance="#[vars.newJsonFileCacheManager]" class="uk.co.gridkey.api.JsonFileCacheManager" target="jsonFileCacheManager" >
+					<java:args ><![CDATA[#[{
+	latestMessageExtractQueryContents:vars.latestMessageExtractQueryContents
+}]]]></java:args>
+				</java:invoke>
+				<java:new constructor="LatestMessageJSONFormatter()" doc:name="LatestMessageJSONFormatter" doc:id="506d2b3b-bf74-473a-ab97-d14fcf51e920" class="uk.co.gridkey.api.LatestMessageJSONFormatter" target="newLatestMessageJSONFormatter" />
+				<java:invoke method="onCall(java.util.Map,java.lang.String,java.util.Map)" doc:name="Format Data as JSON" doc:id="a721d6f0-8300-4d8e-9bca-2132b7978558" instance="#[vars.newLatestMessageJSONFormatter]" class="uk.co.gridkey.api.LatestMessageJSONFormatter" outputMimeType="application/json">
+					<java:args ><![CDATA[#[{
+	latestMessageExtractQueryContents:vars.latestMessageExtractQueryContents,
+	jsonFileCacheManager:vars.jsonFileCacheManager,
+	uriAttributes:attributes.uriParams,
+	}]]]></java:args>
+				</java:invoke>
+			</when>
+			<otherwise >
+				<set-payload value="{}" doc:name="Set Payload to {}" doc:id="7b1d502e-0aad-49e1-adb4-0bd93ef8d1c7" />
+			</otherwise>
+		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="35fffda0-3be6-4bdf-b281-0b7ab11430e8" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="aabaab87-b721-40c3-9288-5955322f5b42" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="75eaf90e-5c07-4231-be8e-38cb1500d81b" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="get:\v2\(dno)\(mcu)\latest\(type)\raw:gridkey-uk-config">
+		<java:new constructor="LatestMessageExtractQueryContents()" doc:name="LatestMessageExtractQueryContents" doc:id="5c87eb49-e5e7-4f04-b1d5-78fda9d88686" class="uk.co.gridkey.api.LatestMessageExtractQueryContents" target="newLatestMessageExtractQueryContents" />
+		<java:invoke method="onCall(java.util.Map,java.util.Map)" doc:name="Get data from the database" doc:id="b46c1a18-19c7-44c7-a78d-d5297d9f22ac" instance="#[vars.newLatestMessageExtractQueryContents]" class="uk.co.gridkey.api.LatestMessageExtractQueryContents" target="latestMessageExtractQueryContents" >
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<choice doc:name="Check Message Validity" doc:id="cb0d582a-240a-455f-a1cd-1770bb6a35fc" >
+			<when expression="#[vars.latestMessageExtractQueryContents.valid==true]" >
+				<java:new constructor="LatestMessageRawJSONFormatter()" doc:name="LatestMessageRawJSONFormatter" doc:id="48c4eef8-bb75-4e17-9d5e-63660fc76526" class="uk.co.gridkey.api.LatestMessageRawJSONFormatter" target="newLatestMessageRawJSONFormatter" />
+				<java:invoke method="onCall(java.util.Map,java.util.Map)" doc:name="Format Data as JSON" doc:id="d0e8054b-339e-4c13-ba11-2c9588283645" instance="#[vars.newLatestMessageRawJSONFormatter]" class="uk.co.gridkey.api.LatestMessageRawJSONFormatter" outputMimeType="application/json">
+					<java:args ><![CDATA[#[{
+	latestMessageExtractQueryContents:vars.latestMessageExtractQueryContents,
+	uriAttributes:attributes.uriParams,
+}]]]></java:args>
+				</java:invoke>
+			</when>
+			<otherwise >
+				<set-payload value="{}" doc:name="Set Payload to {}" doc:id="9f5c4693-6ed7-4f79-820e-81fe95221c53" />
+			</otherwise>
+		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="510ca653-8e39-41e6-ba72-752f3e14405e" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="ebdeda43-8b26-4581-bbd6-e6eece7fa3fb" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="57e478bf-b56d-441f-9569-4b0bca15edd4" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="get:\v2\(dno)\alertphonenumber:gridkey-uk-config">
+		<java:new doc:name="AlertPhoneNumberGetAll" doc:id="b298d962-7c0f-44ac-ab79-bbedc608bf90" class="uk.co.gridkey.api.AlertPhoneNumberGetAll" constructor="AlertPhoneNumberGetAll()" target="newAlertPhoneNumberGetAll"/>
+		<java:invoke doc:name="Get Phone Numbers" doc:id="f45c0442-9709-462a-8176-f588e8705456" instance="#[vars.newAlertPhoneNumberGetAll]" class="uk.co.gridkey.api.AlertPhoneNumberGetAll" target="alertPhoneNumberGetAll" method="onCall(java.util.Map,java.util.Map)">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<set-payload value="#[vars.alertPhoneNumberGetAll.payload]" doc:name="Set Payload" doc:id="776c63dd-3770-4526-aaa4-fa4cdaf7b30c" mimeType="application/json"/>
+		<set-variable value="#[vars.alertPhoneNumberGetAll.responseCode]" doc:name="Set Response Code" doc:id="b31105ac-50f9-46bd-b86f-7e022865cb68" variableName="http.status"/>
+    </flow>
+	<flow name="get:\v2\(dno)\(mcu)\event\(start)\(end)\(type):gridkey-uk-config">
+		<java:new doc:name="EventLogDataJSONFormatter" doc:id="8c5f1bb6-d63c-4aac-86e8-0c229e4e93d8" class="uk.co.gridkey.api.EventLogDataJSONFormatter" target="newEventLogDataJSONFormatter" constructor="EventLogDataJSONFormatter()"/>
+		<java:invoke doc:name="Get data from the database" doc:id="e643a1b5-5c24-45d2-90e9-f3fe5695d252" instance="#[vars.newEventLogDataJSONFormatter]" class="uk.co.gridkey.api.EventLogDataJSONFormatter" method="onCall(java.util.Map,java.util.Map)" outputMimeType="application/json">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="b17f5f39-34f2-49a8-9f76-977be473e3d0" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="c99afcc4-4fd2-4a3e-85b4-a2f338e51ec8" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="19d2b792-f5d8-40e9-83b1-7682bc286599" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="get:\v2\(dno)\(mcu)\event\(start)\(end)\(type)\(params):gridkey-uk-config">
+		<java:new constructor="EventLogDataJSONFormatter()" doc:name="EventLogDataJSONFormatter" doc:id="d482e4e9-6ab7-4442-b16a-232e7a3e40cf" class="uk.co.gridkey.api.EventLogDataJSONFormatter" target="newEventLogDataJSONFormatter" />
+		<java:invoke method="onCall(java.util.Map,java.util.Map)" doc:name="Get data from the database" doc:id="bff8f113-9452-46f6-9c27-410a2b450b20" instance="#[vars.newEventLogDataJSONFormatter]" class="uk.co.gridkey.api.EventLogDataJSONFormatter" outputMimeType="application/json">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="6359cfc7-1d24-4d16-a7ea-ef4aa19052e9" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="4015f71b-a3a2-48b4-8403-8cead17384f7" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="b9ee46ee-2ef6-4791-9ead-720d616728f1" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="delete:\v2\(dno)\alertemailaddress\(username):gridkey-uk-config">
+		<java:new doc:name="AlertEmailDeleteAddress" doc:id="34c3077c-86e0-49e7-b5fa-27e00e60a10b" class="uk.co.gridkey.api.AlertEmailDeleteAddress" constructor="AlertEmailDeleteAddress()" target="newAlertEmailDeleteAddress"/>
+		<java:invoke doc:name="Delete email addresses" doc:id="c88b064f-6f0c-468e-8082-d373e6697e3a" instance="#[vars.newAlertEmailDeleteAddress]" class="uk.co.gridkey.api.AlertEmailDeleteAddress" method="onCall(java.util.Map,java.util.Map)" target="alertEmailDeleteAddress">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<set-payload value="#[vars.alertEmailDeleteAddress.payload]" doc:name="Set Payload" doc:id="a62db7a1-3d5f-4347-a8da-6debb0ace12c" mimeType="application/json"/>
+		<set-variable value="#[vars.newAlertEmailDeleteAddress.responseCode]" doc:name="Set Response Code" doc:id="47d12cdb-e490-4d7d-9379-b26e160f9b5a" variableName="http.status"/>
+    </flow>
+	<flow name="get:\v2\(dno)\alertemailaddress:gridkey-uk-config">
+		<java:new doc:name="AlertEmailGetAllAddresses" doc:id="2c78a32c-d4e6-4e9f-8941-acb2a2dc24fd" class="uk.co.gridkey.api.AlertEmailGetAllAddresses" constructor="AlertEmailGetAllAddresses()" target="newAlertEmailGetAllAddresses"/>
+		<java:invoke doc:name="Get email addresses" doc:id="b72ff28d-848f-4718-b2ac-efad3992faa0" instance="#[vars.newAlertEmailGetAllAddresses]" class="uk.co.gridkey.api.AlertEmailGetAllAddresses" method="onCall(java.util.Map,java.util.Map)" target="alertEmailGetAllAddresses">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<set-payload value="#[vars.alertEmailGetAllAddresses.payload]" doc:name="Set Payload" doc:id="2f657dc8-2ce5-46be-98c5-b2ccab775c0c" mimeType="application/json"/>
+		<set-variable value="#[vars.newAlertEmailGetAllAddresses.responseCode]" doc:name="Set Response Code" doc:id="473b5e2d-e835-44d6-a34d-783d3c1dcce8" variableName="http.status" />
+    </flow>
+	<flow name="get:\v2\(dno)\alertemailaddress\(username):gridkey-uk-config">
+		<java:new doc:name="AlertEmailGetAddress" doc:id="6d0e72d2-2159-4b44-bb2a-e26c84fd2d99" class="uk.co.gridkey.api.AlertEmailGetAddress" constructor="AlertEmailGetAddress()" target="newAlertEmailGetAddress"/>
+		<java:invoke doc:name="Get email address" doc:id="83f1265a-a2f4-44e6-bff0-c19171876240" instance="#[vars.newAlertEmailGetAddress]" class="uk.co.gridkey.api.AlertEmailGetAddress" method="onCall(java.util.Map,java.util.Map)" target="alertEmailGetAddress">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection,
+}]]]></java:args>
+		</java:invoke>
+		<set-payload value="#[vars.alertEmailGetAddress.payload]" doc:name="Set Payload" doc:id="764a94c9-f7f1-478b-b258-7a382f0c4d81" mimeType="application/json"/>
+		<set-variable value="#[vars.newAlertEmailGetAllAddresses.responseCode]" doc:name="Set Response Code" doc:id="3dbefa15-4447-48ff-83f8-ef7798129e73" variableName="http.status" />
+    </flow>
+	<flow name="post:\v2\(dno)\alertemailaddress\(username):application\json:gridkey-uk-config">
+		<java:new doc:name="AlertEmailSetAddress" doc:id="20cbfd98-3728-4736-8c41-45543addf2c5" class="uk.co.gridkey.api.AlertEmailSetAddress" constructor="AlertEmailSetAddress()" target="newAlertEmailSetAddress"/>
+		<java:invoke doc:name="Set email addresses" doc:id="b21ed993-18ab-4ef8-a0c1-03e7c5621fa4" instance="#[vars.newAlertEmailSetAddress]" class="uk.co.gridkey.api.AlertEmailSetAddress" method="onCall(java.util.Map,java.util.Map,java.lang.String)" target="alertEmailSetAddress">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection,
+	payload:payload
+}]]]></java:args>
+		</java:invoke>
+		<set-payload value="#[vars.alertEmailSetAddress.payload]" doc:name="Set Payload" doc:id="1fd6542e-a99a-4028-8373-b24b129e6c0a" mimeType="application/json"/>
+		<set-variable value="#[vars.newAlertEmailGetAllAddresses.responseCode]" doc:name="Set Response Code" doc:id="f621865a-fb89-4f41-be28-c354e3163081" variableName="http.status" />
+    </flow>
+	<flow name="delete:\v2\(dno)\alertphonenumber\(username):gridkey-uk-config">
+		<java:new doc:name="AlertPhoneNumberDelete" doc:id="5ebce0a3-4f9d-471b-ba97-57cd878f168e" class="uk.co.gridkey.api.AlertPhoneNumberDelete" constructor="AlertPhoneNumberDelete()" target="newAlertPhoneNumberDelete"/>
+		<java:invoke doc:name="Delete Phone Number" doc:id="e273ff5e-27c5-4960-a84e-a8435561e2f9" instance="#[vars.newAlertPhoneNumberDelete]" class="uk.co.gridkey.api.AlertPhoneNumberDelete" method="onCall(java.util.Map,java.util.Map)" target="alertPhoneNumberDelete">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection,
+}]]]></java:args>
+		</java:invoke>
+		<set-payload value="#[vars.alertPhoneNumberDelete.payload]" doc:name="Set Payload" doc:id="4d097981-3443-4d8f-bb9e-81a5083d6754" mimeType="application/json"/>
+		<set-variable value="#[vars.newAlertEmailGetAllAddresses.responseCode]" doc:name="Set Response Code" doc:id="dad5a39f-5d54-47cd-ad18-7e2c20fea0d9" variableName="http.status" />
+    </flow>
+	<flow name="get:\v2\(dno)\alertphonenumber\(username):gridkey-uk-config">
+		<java:new doc:name="AlertPhoneNumberGet" doc:id="9c6b3963-d84a-448c-bb9e-deb1f3b7cc95" class="uk.co.gridkey.api.AlertPhoneNumberGet" constructor="AlertPhoneNumberGet()" target="newAlertPhoneNumberGet"/>
+		<java:invoke doc:name="Get Phone Number" doc:id="bcd1f982-8674-45e2-9c69-c3a5f9d3fc62" instance="#[vars.newAlertPhoneNumberGet]" class="uk.co.gridkey.api.AlertPhoneNumberGet" method="onCall(java.util.Map,java.util.Map)" target="alertPhoneNumberGet">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection,
+}]]]></java:args>
+		</java:invoke>
+		<set-payload value="#[vars.alertPhoneNumberGet.payload]" doc:name="Set Payload" doc:id="8fe36a89-ea89-4005-9f0e-007a39306774" mimeType="application/java"/>
+		<set-variable value="#[vars.newAlertEmailGetAllAddresses.responseCode]" doc:name="Set Response Code" doc:id="8fdd0f55-42f8-487f-abf5-6cd40834c029" variableName="http.status" />
+    </flow>
+	<flow name="post:\v2\(dno)\alertphonenumber\(username):gridkey-uk-config">
+		<java:new doc:name="AlertPhoneNumberSet" doc:id="684dda7f-c71c-4ad3-a307-4f5026bd951a" class="uk.co.gridkey.api.AlertPhoneNumberSet" constructor="AlertPhoneNumberSet()" target="newAlertPhoneNumberSet"/>
+		<java:invoke doc:name="Post Phone Number" doc:id="11f7f68c-c752-4b14-88c4-5604c5f005b7" instance="#[vars.newAlertPhoneNumberSet]" class="uk.co.gridkey.api.AlertPhoneNumberSet" method="onCall(java.util.Map,java.util.Map,java.lang.String)" target="alertPhoneNumberSet">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection,
+	payload:payload
+}]]]></java:args>
+		</java:invoke>
+		<set-payload value="#[vars.alertPhoneNumberSet.payload]" doc:name="Set Payload" doc:id="66c655ea-bf81-4720-8861-787cd8346060" mimeType="application/java" />
+		<set-variable value="#[vars.newAlertEmailGetAllAddresses.responseCode]" doc:name="Set Response Code" doc:id="a96c789e-ccac-407f-920f-34a83dfd688a" variableName="http.status" mimeType="application/json"/>
+    </flow>
+	<flow name="post:\v2\(dno)\(mcu)\resetindicator\(indicator):gridkey-uk-config">
+		<set-variable value="good" doc:name="Set the Value variable" doc:id="58194984-ba5a-44b2-9263-28d323ebf589" variableName="indicatorValue"/>
+		<java:new doc:name="AnalyticsIndicatorSetValue" doc:id="d2cab30f-1a11-4527-a6ee-6e47441f3335" class="uk.co.gridkey.api.AnalyticsIndicatorSetValue" constructor="AnalyticsIndicatorSetValue()" target="newAnalyticsIndicatorSetValue"/>
+		<java:invoke doc:name="Set the indicator" doc:id="3d97f8dc-bedc-48bf-bf97-1d68b974b889" instance="#[vars.newAnalyticsIndicatorSetValue]" class="uk.co.gridkey.api.AnalyticsIndicatorSetValue" target="analyticsIndicatorSetValue" method="onCall(java.util.Map,java.lang.String,java.util.Map)">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	indicatorVal:vars.indicatorValue,
+	cassConnection:vars.cassConnection,
+}]]]></java:args>
+		</java:invoke>
+		<set-payload value="#[vars.analyticsIndicatorSetValue.payload]" doc:name="Set Payload" doc:id="9e32edf1-fdce-404c-96c6-636b47a5f3fd" mimeType="application/java" />
+		<set-variable value="#[vars.newAlertEmailGetAllAddresses.responseCode]" doc:name="Set Response Code" doc:id="efab0d80-70d0-4773-b23b-89bc07fda7f7" variableName="http.status" mimeType="application/json" />
+    </flow>
+	<flow name="post:\v2\(dno)\(mcu)\setindicator\(indicator):application\json:gridkey-uk-config">
+		<java:new doc:name="AnalyticsIndicatorExtractValue" doc:id="62b5d506-7fab-497d-ab4d-68ba221431d9" class="uk.co.gridkey.api.AnalyticsIndicatorExtractValue" constructor="AnalyticsIndicatorExtractValue()" target="newAnalyticsIndicatorExtractValue"/>
+		<java:invoke doc:name="Set the Value variable" doc:id="269d88e8-ff80-48c6-8eee-e668aab52dd2" instance="#[vars.newAnalyticsIndicatorExtractValue]" class="uk.co.gridkey.api.AnalyticsIndicatorExtractValue" method="onCall(java.lang.String)">
+			<java:args ><![CDATA[#[{
+	payload:payload
+}]]]></java:args>
+		</java:invoke>
+		<java:new constructor="AnalyticsIndicatorSetValue()" doc:name="AnalyticsIndicatorSetValue" doc:id="c174f878-d7b7-41fc-a2e7-704ddf4d7434" class="uk.co.gridkey.api.AnalyticsIndicatorSetValue" target="newAnalyticsIndicatorSetValue" />
+		<java:invoke method="onCall(java.util.Map,java.lang.String,java.util.Map)" doc:name="Set the indicator" doc:id="dec29372-8ac9-4ea3-864c-8ba278a1fdd0" instance="#[vars.newAnalyticsIndicatorSetValue]" class="uk.co.gridkey.api.AnalyticsIndicatorSetValue" target="analyticsIndicatorSetValue">
+			<java:args><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	indicatorVal:vars.indicatorValue,
+	cassConnection:vars.cassConnection,
+}]]]></java:args>
+		</java:invoke>
+		<set-payload value="#[vars.analyticsIndicatorSetValue.payload]" doc:name="Set Payload" doc:id="b62b1385-17db-4208-8c87-afc9c4f8d43e" mimeType="application/java" />
+		<set-variable value="#[vars.newAlertEmailGetAllAddresses.responseCode]" doc:name="Set Response Code" doc:id="9e6f4817-3249-4569-b351-625ea09a4f5e" variableName="http.status" mimeType="application/json" />
+    </flow>
+	<flow name="post:\v2\(dno)\alertemailaddress\(username)\(state):gridkey-uk-config">
+		<java:new doc:name="AlertEmailEnableDisable" doc:id="d0e913d6-496d-4c49-b985-652a597c2f83" class="uk.co.gridkey.api.AlertEmailEnableDisable" constructor="AlertEmailEnableDisable()" target="newAlertEmailEnableDisable"/>
+		<java:invoke doc:name="Enable/Disable the alert email address" doc:id="71b14134-914e-40f1-a39d-ffcd3d882c22" instance="#[vars.newAlertEmailEnableDisable]" class="uk.co.gridkey.api.AlertEmailEnableDisable" method="onCall(java.util.Map,java.util.Map)" target="alertEmailEnableDisable">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<set-payload value="#[vars.alertEmailEnableDisable.payload]" doc:name="Set Payload" doc:id="408a87d9-ab54-4b55-885d-6613f7c5de01" mimeType="application/java" />
+		<set-variable value="#[vars.newAlertEmailGetAllAddresses.responseCode]" doc:name="Set Response Code" doc:id="dddeab51-fdfd-4b4f-b6f7-a4da230fb72d" variableName="http.status" mimeType="application/json" />
+    </flow>
+	<flow name="post:\v2\(dno)\alertphonenumber\(username)\(state):gridkey-uk-config">
+		<java:new doc:name="AlertPhoneNumberEnableDisable" doc:id="cb3505a1-2b2b-4065-bb3d-0766e66a7250" class="uk.co.gridkey.api.AlertPhoneNumberEnableDisable" constructor="AlertPhoneNumberEnableDisable()" target="newAlertPhoneNumberEnableDisable"/>
+		<java:invoke doc:name="Enable/Disable the alert phone number" doc:id="e4cf7cbb-0b18-45a5-850e-353c8f828feb" instance="#[vars.newAlertPhoneNumberEnableDisable]" class="uk.co.gridkey.api.AlertPhoneNumberEnableDisable" method="onCall(java.util.Map,java.util.Map)" target="alertPhoneNumberEnableDisable">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<set-payload value="#[vars.alertPhoneNumberEnableDisable.payload]" doc:name="Set Payload" doc:id="d58a9ccb-fe6e-4f75-9678-0aac01b7bfac" mimeType="application/java" />
+		<set-variable value="#[vars.newAlertEmailGetAllAddresses.responseCode]" doc:name="Set Response Code" doc:id="2608d9d8-46b2-4d1c-9b8e-4d04ade73fe6" variableName="http.status" mimeType="application/json" />
+    </flow>
+	<flow name="get:\v2\(dno)\(mcu)\waveform\(date):gridkey-uk-config">
+		<java:new doc:name="GetWaveformFiles" doc:id="fa044ec5-4f72-4bd3-8566-79fdfb551adc" class="uk.co.gridkey.api.GetWaveformFiles" constructor="GetWaveformFiles()" target="newGetWaveformFiles"/>
+		<java:invoke doc:name="Get Waveform Data" doc:id="6a8ca03f-476c-44e3-afbd-1e6923f16eed" instance="#[vars.newGetWaveformFiles]" class="uk.co.gridkey.api.GetWaveformFiles" method="onCall(java.util.Map)" target="getWaveformFiles">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+}]]]></java:args>
+		</java:invoke>
+		<java:new doc:name="ALARMWaveformJSONFormatter" doc:id="779e9d7a-bf39-445a-8f9a-0c17f78725e7" class="uk.co.gridkey.api.ALARMWaveformJSONFormatter" constructor="ALARMWaveformJSONFormatter()" target="newALARMWaveformJSONFormatter"/>
+		<java:invoke doc:name="Format Data as JSON" doc:id="d2cfe729-f7c6-4c30-aba4-5d2476db3927" instance="#[vars.newALARMWaveformJSONFormatter]" class="uk.co.gridkey.api.ALARMWaveformJSONFormatter" method="onCall(java.util.Map,java.util.Map)" outputMimeType="application/json">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	getWaveformFiles:vars.getWaveformFiles
+	
+}]]]></java:args>
+		</java:invoke>
+    </flow>
+	<flow name="post:\v2\(dno)\transaction\preprepared\send:application\json:gridkey-uk-config">
+		<java:new doc:name="BuildBulkTransmitUnitAddressList" doc:id="c33ceb88-672e-4d5b-a971-584c1696afb9" class="uk.co.gridkey.api.BuildBulkTransmitUnitAddressList" constructor="BuildBulkTransmitUnitAddressList()" target="newBuildBulkTransmitUnitAddressList"/>
+		<java:invoke doc:name="Build Bulk MCU Address Map" doc:id="e670c9a3-99be-4fa1-94e7-a19f215fbfa6" instance="#[vars.newBuildBulkTransmitUnitAddressList]" class="uk.co.gridkey.api.BuildBulkTransmitUnitAddressList" target="buildBulkTransmitUnitAddressList" method="onCall(java.util.Map,java.lang.String,java.util.Map)">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	payload:payload,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+		</java:invoke>
+		<java:new doc:name="ConstructPrepreparedTransactionRequest" doc:id="e6d452a2-4088-485a-af1e-08c70b7e7fc1" class="uk.co.gridkey.api.ConstructPrepreparedTransactionRequest" constructor="ConstructPrepreparedTransactionRequest()" target="newConstructPrepreparedTransactionRequest"/>
+		<java:invoke doc:name="Construct Preprepared Transaction Request" doc:id="10502ef8-7af8-4800-8a59-b88b407bda9b" instance="#[vars.newConstructPrepreparedTransactionRequest]" class="uk.co.gridkey.api.ConstructPrepreparedTransactionRequest" target="constructPrepreparedTransactionRequest" method="onCall(java.lang.String)">
+			<java:args ><![CDATA[#[{
+	payload:payload
+}]]]></java:args>
+		</java:invoke>
+		<choice doc:name="Got Required Details?" doc:id="626eff3f-82e3-46e5-91ee-4fc049d3213e" >
+			<when expression="#[!(vars.buildBulkTransmitUnitAddressList.transmitAddressList.size==0) and !(vars.constructPrepreparedTransactionRequest.transactionString==null)]">
+				<foreach doc:name="For Each" doc:id="49e62e95-5d47-494e-b39d-71c11e76b82a" collection="#[vars.buildBulkTransmitUnitAddressList.transmitAddressList]">
+					<java:new doc:name="SetEndPointAddressDetails" doc:id="04c0fa02-3591-4151-9a8e-65ab00ff8bbe" class="uk.co.gridkey.api.SetEndPointAddressDetails" constructor="SetEndPointAddressDetails()" target="newSetEndPointAddressDetails"/>
+					<java:invoke doc:name="SetEndPointAddressDetails" doc:id="caa41f4d-a699-4078-9fa8-60570bb996db" instance="#[vars.newSetEndPointAddressDetails]" class="uk.co.gridkey.api.SetEndPointAddressDetails" target="setEndPointAddressDetails" method="onCall(java.lang.String)">
+						<java:args ><![CDATA[#[{
+	payload:payload
+}]]]></java:args>
+					</java:invoke>
+					<choice doc:name="IP &amp; Port Configured?" doc:id="040872cc-0e2f-48ce-bf90-2a966f1c66dd" >
+						<when expression="#[(vars.setEndPointAddressDetails.unitIp != null) and (vars.setEndPointAddressDetails.unitPort != null)]">
+							<sockets:send doc:name="Send Command to MCU" doc:id="bb2774f2-b154-4973-9de5-578b2e49c602" config-ref="Sockets_Request_config" />
+							<set-payload value="success" doc:name="Set Result to Success" doc:id="aa1999ef-cebd-43f8-8cd7-df8c469d5ecd" />
+						</when>
+						<otherwise >
+							<set-payload value="error" doc:name="Set Result to Error" doc:id="0a890043-9b54-47af-95f6-5b495eb339cb" />
+						</otherwise>
+					</choice>
+				</foreach>
+			</when>
+			<otherwise >
+				<set-payload value="error" doc:name="Set Result to Error" doc:id="10ecef45-c548-4798-b97a-1632ad589ee1" />
+			</otherwise>
+		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="eea9ac7e-f48a-438d-916e-cff3bc4a9266" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="032b141b-97f6-4dd4-b74b-8734e56f9e75" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="2385fec8-269c-4478-b22c-3ba9e294336b" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="post:\v2\firmware\(type)\(revision)\store:gridkey-uk-config">
+		<java:new doc:name="StoreFirmwareFileOnFileSystem" doc:id="9015c1e4-78df-4917-9181-c1c0febe4fe4" class="uk.co.gridkey.api.StoreFirmwareFileOnFileSystem" constructor="StoreFirmwareFileOnFileSystem()" target="newStoreFirmwareFileOnFileSystem"/>
+		<java:invoke doc:name="Store Firmware to Filesystem" doc:id="4f557837-e5ba-4bdb-9447-ce02ac8be25b" instance="#[vars.newStoreFirmwareFileOnFileSystem]" class="uk.co.gridkey.api.StoreFirmwareFileOnFileSystem" target="storeFirmwareFileOnFileSystem" method="onCall(java.util.Map,byte[])">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	payload:payload
+}]]]></java:args>
+		</java:invoke>
+		<choice doc:name="File Stored?" doc:id="600865b0-9460-4235-bdbf-a15b87b6dfeb" >
+			<when expression="#[vars.storeFirmwareFileOnFileSystem.fileStored]">
+				<set-payload value="success" doc:name="Set Result to Success" doc:id="079f00e8-d1d9-4379-84dd-5d2ca488635d" />
+			</when>
+			<otherwise >
+				<set-payload value="error" doc:name="Set Result to Error" doc:id="c623ffdf-e714-4319-8578-0fdeaff19417" />
+			</otherwise>
+		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="59ac584f-451c-4ff9-87f1-70de8a417f4b" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="7de89dae-652f-4af9-9897-8118df08524f" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="7e4c56d9-a5e1-49e8-9bc3-4c825219b420" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="post:\v2\(dno)\firmware\(extension)\(revision)\send:application\json:gridkey-uk-config">
+		<java:new doc:name="GetFirmwareFileDetailsFromFileSystem" doc:id="ad41460e-3b0a-48dd-8e8e-2e620c266de2" class="uk.co.gridkey.api.GetFirmwareFileDetailsFromFileSystem" constructor="GetFirmwareFileDetailsFromFileSystem()" target="newGetFirmwareFileDetailsFromFileSystem"/>
+		<java:invoke doc:name="Get Firmware File Details" doc:id="e0e2033c-a322-48c7-b29b-8784165e7599" instance="#[vars.newGetFirmwareFileDetailsFromFileSystem]" class="uk.co.gridkey.api.GetFirmwareFileDetailsFromFileSystem" method="onCall(java.util.Map)" target="getFirmwareFileDetailsFromFileSystem">
+			<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams
+}]]]></java:args>
+		</java:invoke>
+		<choice doc:name="Does Firmware File Exist?" doc:id="79cc0f24-de04-4b72-b0fb-cfd8d5cea9e5" >
+			<when expression="#[vars.getFirmwareFileDetailsFromFileSystem.fileExists]">
+				<java:new constructor="BuildBulkTransmitUnitAddressList()" doc:name="BuildBulkTransmitUnitAddressList" doc:id="756d9e5b-1b5e-436a-b545-6066f47242fa" class="uk.co.gridkey.api.BuildBulkTransmitUnitAddressList" target="newBuildBulkTransmitUnitAddressList" />
+				<java:invoke method="onCall(java.util.Map,java.lang.String,java.util.Map)" doc:name="Build Bulk MCU Address Map" doc:id="5f5cf27d-5e6f-4559-b161-3350c4d110b3" instance="#[vars.newBuildBulkTransmitUnitAddressList]" class="uk.co.gridkey.api.BuildBulkTransmitUnitAddressList" target="buildBulkTransmitUnitAddressList" >
+					<java:args ><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	payload:payload,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+				</java:invoke>
+				<choice doc:name="Got Required Details?" doc:id="05fe9f6e-0559-4d67-aa33-ce1e2f0f739b" >
+					<when expression="#[vars.buildBulkTransmitUnitAddressList.transmitAddressList != null]">
+						<foreach doc:name="For Each" doc:id="7e68c9fc-da44-457e-a7ad-0c017dc97a9c" collection="#[vars.buildBulkTransmitUnitAddressList.transmitAddressList]" >
+							<java:new constructor="SetEndPointAddressDetails()" doc:name="SetEndPointAddressDetails" doc:id="3df79df2-b180-4ab2-a6f2-513c7e570f9f" class="uk.co.gridkey.api.SetEndPointAddressDetails" target="newSetEndPointAddressDetails" />
+							<java:invoke method="onCall(java.lang.String)" doc:name="Set EndPoint Address Details" doc:id="6cfa7c9c-3e36-4ac6-bf30-75fd5c2bc5d3" instance="#[vars.newSetEndPointAddressDetails]" class="uk.co.gridkey.api.SetEndPointAddressDetails" target="setEndPointAddressDetails" >
+								<java:args ><![CDATA[#[{
+	payload:payload
+}]]]></java:args>
+							</java:invoke>
+							<choice doc:name="IP &amp; Port Configured?" doc:id="3cfa19b5-c841-4f30-802b-e11739d68ed9" >
+								<when expression="#[(vars.setEndPointAddressDetails.unitIp != null) and (vars.setEndPointAddressDetails.unitPort != null)]" >
+									<java:new doc:name="ConstructFirmwareUpgradeTransactionRequest" doc:id="4b8004ea-0619-4492-ba70-6997aa147538" class="uk.co.gridkey.api.ConstructFirmwareUpgradeTransactionRequest" constructor="ConstructFirmwareUpgradeTransactionRequest()" target="newConstructFirmwareUpgradeTransactionRequest"/>
+									<java:invoke doc:name="Construct Firmware Upgrade Transaction Request" doc:id="e4054df6-4088-48b0-90a7-4d9bddd83c7d" instance="#[vars.newConstructFirmwareUpgradeTransactionRequest]" class="uk.co.gridkey.api.ConstructFirmwareUpgradeTransactionRequest" method="onCall(java.util.Map)" target="constructFirmwareUpgradeTransactionRequest">
+										<java:args ><![CDATA[#[{
+	getFirmwareFileDetailsFromFileSystem:vars.getFirmwareFileDetailsFromFileSystem
+}]]]></java:args>
+									</java:invoke>
+									<sockets:send doc:name="Send Command to MCU" doc:id="44d995bc-cbbe-4565-be38-84c791b8e476" config-ref="Sockets_Request_config" />
+									<set-payload value="success" doc:name="Set Result to Success" doc:id="7984a5e5-fb28-4501-8b98-75c7f7659c03" />
+								</when>
+								<otherwise >
+									<set-payload value="error" doc:name="Set Result to Error" doc:id="856da593-6e83-436d-a27d-66a24e63c1ef" />
+								</otherwise>
+							</choice>
+						</foreach>
+					</when>
+					<otherwise >
+						<set-payload value="error" doc:name="Set Result to Error" doc:id="f0792582-0dd8-4bd3-8391-acce1c622fe0" />
+					</otherwise>
+				</choice>
+			</when>
+			<otherwise >
+				<set-payload value="error" doc:name="Set Result to Error" doc:id="554eab43-c7bf-4f17-983f-40dbee06941c" />
+			</otherwise>
+		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate - Return Empty JSON data" doc:id="42e0e1aa-1837-45c7-8895-86a623f20b88" type="ANY" >
+				<set-variable value="application/json" doc:name="Set Variable" doc:id="4a7884ca-929c-4b0e-96c9-6c7fbebe1b47" variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload" doc:id="2f008def-f755-497a-9c0c-66a634119862" />
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+</mule>

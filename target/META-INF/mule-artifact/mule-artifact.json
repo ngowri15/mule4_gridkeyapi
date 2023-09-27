@@ -1,0 +1,36 @@
+{
+  "configs": [
+    "gridkey-uk.xml",
+    "gridkey-cloud.xml"
+  ],
+  "secureProperties": [],
+  "redeploymentEnabled": true,
+  "name": "uk.co.gridkey:gridkeyapi:1.0.0-SNAPSHOT",
+  "minMuleVersion": "4.4.0",
+  "requiredProduct": "MULE",
+  "classLoaderModelLoaderDescriptor": {
+    "id": "mule",
+    "attributes": {
+      "exportedPackages": [
+        "uk.co.gridkey.token",
+        "uk.co.gridkey.datacentre",
+        "uk.co.gridkey.datacentre.db",
+        "uk.co.gridkey.bean",
+        "uk.co.gridkey.api"
+      ],
+      "exportedResources": [
+        ".DS_Store",
+        "gridkey-uk.xml",
+        "gridkey-cloud.xml",
+        "application-types.xml",
+        "secrets.properties",
+        "api/gridkey-cloud.raml",
+        "api/gridkey-uk.raml"
+      ]
+    }
+  },
+  "bundleDescriptorLoader": {
+    "id": "mule",
+    "attributes": {}
+  }
+}

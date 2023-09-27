@@ -1,0 +1,999 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:spring="http://www.mulesoft.org/schema/mule/spring"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:java="http://www.mulesoft.org/schema/mule/java"
+	xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking"
+	xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:ehcache="http://www.mulesoft.org/schema/mule/ehcache"
+	xsi:schemaLocation=" http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd  http://www.mulesoft.org/schema/mule/core  http://www.mulesoft.org/schema/mule/core/current/mule.xsd  http://www.mulesoft.org/schema/mule/http  http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd  http://www.mulesoft.org/schema/mule/mule-apikit  http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd  http://www.mulesoft.org/schema/mule/java  http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd 
+	http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/spring
+        http://www.mulesoft.org/schema/mule/spring/current/mule-spring.xsd">
+	
+	<http:listener-config
+		name="gridkey-cloud-httpListenerConfig">
+		<http:listener-connection host="0.0.0.0"
+			port="9092" />
+	</http:listener-config>
+	<apikit:config name="gridkey-cloud-config"
+		api="api/gridkey-cloud.raml" outboundHeadersMapName="outboundHeaders"
+		httpStatusVarName="httpStatus" />
+	<validation:config name="Validation_Config-cloud"
+		doc:name="Validation Config"
+		doc:id="3d4f0515-59cb-4e17-90a3-b3a639687164"
+		tracking:enable-default-events="false" />
+	<flow name="gridkey-cloud-main"
+		doc:id="8d44901e-9d64-43ef-a590-0eaebef7db5b">
+		<http:listener
+			config-ref="gridkey-cloud-httpListenerConfig" path="/*" doc:name="HTTP Listener">
+		</http:listener>
+		<java:new doc:name="CassandraConnectorObjectCacheManager"
+			doc:id="dda26fe1-ef90-4160-8094-084abaf0334c"
+			class="uk.co.gridkey.datacentre.db.CassandraConnectorObjectCacheManager"
+			constructor="CassandraConnectorObjectCacheManager()"
+			target="newCassandraConnectorObjectCacheManager" />
+		<java:invoke
+			doc:name="Cassandra Connector Ehcache Interceptor"
+			doc:id="022d32b9-24ca-4845-9251-c6d880fdf5cf"
+			instance="#[vars.newCassandraConnectorObjectCacheManager]"
+			class="uk.co.gridkey.datacentre.db.CassandraConnectorObjectCacheManager"
+			method="onCall()" target="cassConnection">
+		</java:invoke>
+		<validation:is-true doc:name="Filter favicon"
+			doc:id="63bcdf42-6575-4802-a118-3058758d6131"
+			expression="#[attributes.requestUri != '/favicon.ico']"
+			config-ref="Validation_Config-cloud" />
+		<apikit:router config-ref="gridkey-cloud-config" />
+		<error-handler>
+			<on-error-propagate type="APIKIT:BAD_REQUEST"
+				doc:name="On Error Propagate - 400">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="0b4a86d6-e565-483c-91f8-6da08f48f39f"
+					variableName="Content-Type" />
+				<set-payload
+					value="#[&quot;message&quot;: &quot;Bad request&quot;]"
+					doc:name="Set Payload"
+					doc:id="ea32d8c2-5a0f-46b4-9481-597f124b1d00" />
+			</on-error-propagate>
+			<on-error-propagate type="APIKIT:NOT_FOUND"
+				doc:name="On Error Propagate - 404">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="b828c443-b2c1-4814-99eb-9939eb9f5dbe"
+					variableName="Content-Type" />
+				<set-payload
+					value="#[&quot;message&quot;: &quot;Resource not found&quot;]"
+					doc:name="Set Payload"
+					doc:id="3b9c2b56-e4f1-4b22-8297-8ec6763c9dc7" />
+			</on-error-propagate>
+			<on-error-propagate
+				type="APIKIT:METHOD_NOT_ALLOWED" doc:name="On Error Propagate - 405">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="c555c579-15a3-4e81-8df5-3ffe5c1889b7"
+					variableName="Content-Type" />
+				<set-payload
+					value="#[&quot;message&quot;: &quot;Method not allowed&quot;]"
+					doc:name="Set Payload"
+					doc:id="15d53978-b2b0-4874-9ce7-90854dfab212" />
+			</on-error-propagate>
+			<on-error-propagate type="APIKIT:NOT_ACCEPTABLE"
+				doc:name="On Error Propagate - 406">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="209ceb0c-39be-4b11-8c17-6b14e051f88b"
+					variableName="Content-Type" />
+				<set-payload
+					value="#[&quot;message&quot;: &quot;Not acceptable&quot;]"
+					doc:name="Set Payload"
+					doc:id="2d89518b-48b9-435a-9f9e-e552d5d9c728" />
+			</on-error-propagate>
+			<on-error-propagate
+				type="APIKIT:UNSUPPORTED_MEDIA_TYPE"
+				doc:name="On Error Propagate -415">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="ff1b5c13-145e-41e4-92ec-adefba847dd5"
+					variableName="Content-Type" />
+				<set-payload
+					value="#[&quot;message&quot;: &quot;Unsupported media type&quot;]"
+					doc:name="Set Payload"
+					doc:id="d79f5332-da49-4212-921d-68094a40c566" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="gridkey-cloud-console">
+		<http:listener
+			config-ref="gridkey-cloud-httpListenerConfig" path="/console/*">
+			<http:response
+				statusCode="#[vars.httpStatus default 200]">
+				<http:headers>#[vars.outboundHeaders default {}]</http:headers>
+			</http:response>
+			<http:error-response
+				statusCode="#[vars.httpStatus default 500]">
+				<http:body>#[payload]</http:body>
+				<http:headers>#[vars.outboundHeaders default {}]</http:headers>
+			</http:error-response>
+		</http:listener>
+		<apikit:console config-ref="gridkey-cloud-config" />
+		<error-handler>
+			<on-error-propagate type="APIKIT:NOT_FOUND"
+				doc:name="On Error Propagate - 404">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="13f580c4-3943-4e03-8464-38c83faa7330"
+					variableName="Content-Type" />
+				<set-payload
+					value="#[&quot;message&quot;: &quot;Resource not found&quot;]"
+					doc:name="Set Payload"
+					doc:id="7dc47662-c5d5-4fb1-bfcd-e2e055059fcd" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="post:\v2\generateAccessToken:gridkey-cloud-config">
+		<java:invoke-static
+			method="generateAccessToken(java.lang.String,java.lang.String,java.lang.String)"
+			doc:name="Generate Access Token"
+			doc:id="7f9225f3-a7b8-4f98-bc18-c4b695eef13f"
+			class="uk.co.gridkey.token.GenerateAccessToken" outputMimeType="application/json">
+			<java:args><![CDATA[#[{
+	accessExpiry: attributes.headers['accessExpiry'],
+	email:attributes.headers['email'],
+	dnos:attributes.headers['dnos']
+}]]]></java:args>
+		</java:invoke-static>
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				logException="true"
+				doc:name="On Error Propagate - Token Not Generated"
+				doc:id="084cff85-e4fb-4b02-b256-690646306ecf" type="ANY">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="5e01310b-eec4-406e-9487-493fcc7199ef"
+					variableName="Content-Type" />
+				<set-payload value="Token Not Generated"
+					doc:name="Set Payload"
+					doc:id="cc29c01d-4a64-4a6b-abd8-d9f3f8b8d95f" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="get:\v2\(dno):gridkey-cloud-config">
+		<java:invoke-static doc:name="ValidateToken"
+			doc:id="8c022802-b784-475f-b4b5-c05447f1007a"
+			class="uk.co.gridkey.token.ValidateToken"
+			method="validateToken(java.lang.String,java.lang.String,java.lang.String)"
+			target="validateToken">
+			<java:args><![CDATA[#[{
+	accessToken:attributes.headers['Authorization'],
+	email:attributes.headers['email'],
+	dno:attributes.uriParams.dno
+}]]]></java:args>
+		</java:invoke-static>
+		<choice doc:name="Check Access"
+			doc:id="3d4f0515-59cb-4e17-90a3-b3a639687164">
+			<when expression="#[vars.validateToken==true]">
+				<java:new doc:name="McuListDataJSONFormatter"
+					doc:id="e5f96f49-5a43-44a1-8451-7dde8845d62c"
+					class="uk.co.gridkey.api.McuListDataJSONFormatter"
+					constructor="McuListDataJSONFormatter()"
+					target="mcuListDataJSONFormatter" />
+				<java:invoke doc:name="Get MCU List"
+					doc:id="45055b94-ef54-41ca-a25f-bb15440dd395"
+					instance="#[vars.mcuListDataJSONFormatter]"
+					class="uk.co.gridkey.api.McuListDataJSONFormatter"
+					method="onCall(java.util.Map,java.util.Map)" outputMimeType="application/json">
+					<java:args><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+				</java:invoke>
+			</when>
+			<otherwise>
+				<set-payload
+					value="Missing Credentials or Invalid Token"
+					doc:name="Missing Credentials or Invalid Token"
+					doc:id="1b3fb727-9cbf-4155-b1e6-5da468ade9b7" />
+				<set-variable value="401" doc:name="httpStatus - 401"
+					variableName="httpStatus" />
+			</otherwise>
+		</choice>
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				logException="true"
+				doc:name="On Error Propagate - Return Empty JSON data"
+				doc:id="8eef15af-e8c8-4ce2-b1ae-bcce4d508a78" type="ANY">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="53eb2321-8978-46e9-ab88-ff851e33b6bc"
+					variableName="Content-Type" />
+				<set-payload doc:name="Set Payload"
+					doc:id="afcf2b8b-58c9-459c-80d9-6bdcf2aa9c87" value="{}" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="get:\v2\(dno)\dashboard:gridkey-cloud-config">
+		<java:invoke-static doc:name="ValidateToken"
+			doc:id="a4daa8a0-fc69-44c3-801d-52dadd8d1104"
+			class="uk.co.gridkey.token.ValidateToken"
+			method="validateToken(java.lang.String,java.lang.String,java.lang.String)"
+			target="validateToken">
+			<java:args><![CDATA[#[{
+	accessToken:attributes.headers['Authorization'],
+	email:attributes.headers['email'],
+	dno:attributes.uriParams.dno
+}]]]></java:args>
+		</java:invoke-static>
+		<choice doc:name="Check Access"
+			doc:id="289797c3-8478-437b-ab84-2d112ff99c61">
+			<when expression="#[vars.validateToken==true]">
+				<java:new doc:name="DashboardDataAllMcusJSONFormatter"
+					doc:id="1964fa3c-767c-4d3b-a8ef-2e7e9144a1fb"
+					class="uk.co.gridkey.api.DashboardDataAllMcusJSONFormatter"
+					constructor="DashboardDataAllMcusJSONFormatter()"
+					target="dashboardDataAllMcusJSONFormatter" />
+				<java:invoke doc:name="Get All MCU Dashboard Data"
+					doc:id="f4b69b37-4788-4b92-a243-35023c98b1e1"
+					instance="#[vars.dashboardDataAllMcusJSONFormatter]"
+					class="uk.co.gridkey.api.DashboardDataAllMcusJSONFormatter"
+					method="onCall(java.util.Map,java.util.Map)" outputMimeType="application/json">
+					<java:args><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+				</java:invoke>
+			</when>
+			<otherwise>
+				<set-payload
+					value="Missing Credentials or Invalid Token"
+					doc:name="Missing Credentials or Invalid Token"
+					doc:id="8959b7ee-4a9c-4dac-a551-e9d0f886935f" />
+				<set-variable value="401" doc:name="httpStatus - 401"
+					variableName="httpStatus" />
+			</otherwise>
+		</choice>
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				logException="true"
+				doc:name="On Error Propagate - Return Empty JSON data"
+				doc:id="66ccb3e5-99f6-47ed-a22d-e5a6af1ab509" type="ANY">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="505b8dbf-b89a-4619-923c-c4ec15f3dc17"
+					variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload"
+					doc:id="7ada315e-eff7-4c4c-ad9a-2ef575d26360" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="get:\v2\(dno)\dashboard\(mcu):gridkey-cloud-config">
+		<java:invoke-static doc:name="ValidateToken"
+			doc:id="50f5cc43-735b-4c4a-8506-2635c02a63e0"
+			class="uk.co.gridkey.token.ValidateToken"
+			method="validateToken(java.lang.String,java.lang.String,java.lang.String)"
+			target="validateToken">
+			<java:args><![CDATA[#[{
+	accessToken:attributes.headers['Authorization'],
+	email:attributes.headers['email'],
+	dno:attributes.uriParams.dno
+}]]]></java:args>
+		</java:invoke-static>
+		<choice doc:name="Check Access"
+			doc:id="b239cf61-8ec9-44ac-a3c2-dcfa6b9bc22c">
+			<when expression="#[vars.validateToken==true]">
+				<java:new doc:name="DashboardDataSpecificMcuJSONFormatter"
+					doc:id="8403c497-36f8-4cb5-be31-c12d2ee668e4"
+					class="uk.co.gridkey.api.DashboardDataSpecificMcuJSONFormatter"
+					constructor="DashboardDataSpecificMcuJSONFormatter()"
+					target="dashboardDataSpecificMcuJSONFormatter" />
+				<java:invoke doc:name="Get Specific MCU Dashboard Data"
+					doc:id="83a81202-809f-4981-91f9-c21ff3a8a11c"
+					instance="#[vars.dashboardDataSpecificMcuJSONFormatter]"
+					class="uk.co.gridkey.api.DashboardDataSpecificMcuJSONFormatter"
+					method="onCall(java.util.Map,java.util.Map)" outputMimeType="application/json">
+					<java:args><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+				</java:invoke>
+			</when>
+			<otherwise>
+				<set-payload
+					value="Missing Credentials or Invalid Token"
+					doc:name="Missing Credentials or Invalid Token"
+					doc:id="daf9b153-1eda-45bb-9f36-f41d188cf4fd" />
+				<set-variable value="401" doc:name="httpStatus - 401"
+					variableName="httpStatus" />
+			</otherwise>
+		</choice>
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				logException="true"
+				doc:name="On Error Propagate - Return Empty JSON data"
+				doc:id="fd098172-2085-444e-8386-a1fb56878914" type="ANY">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="dd3db465-c70a-4db9-8dce-fc1ffc682ea0"
+					variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload"
+					doc:id="e8cf1dc0-eb6b-4746-862b-da9549871ec6" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="get:\v2\(dno)\(mcu):gridkey-cloud-config">
+		<java:invoke-static doc:name="ValidateToken"
+			doc:id="0f4f9a28-8666-4b96-bb29-104afaacd0d3"
+			class="uk.co.gridkey.token.ValidateToken"
+			method="validateToken(java.lang.String,java.lang.String,java.lang.String)"
+			target="validateToken">
+			<java:args><![CDATA[#[{
+	accessToken:attributes.headers['Authorization'],
+	email:attributes.headers['email'],
+	dno:attributes.uriParams.dno
+}]]]></java:args>
+		</java:invoke-static>
+		<choice doc:name="Check Access"
+			doc:id="3c754c75-f636-4222-80d6-4924bce03b3e">
+			<when expression="#[vars.validateToken==true]">
+				<java:new doc:name="McuDetailsJSONFormatter"
+					doc:id="1af7758b-4698-4f6b-a7f3-cded21aecd0f"
+					class="uk.co.gridkey.api.McuDetailsJSONFormatter"
+					constructor="McuDetailsJSONFormatter()"
+					target="mcuDetailsJSONFormatter" />
+				<java:invoke doc:name="Get MCU Details"
+					doc:id="959d39b5-fd8d-499b-954d-3482e0481aea"
+					instance="#[vars.mcuDetailsJSONFormatter]"
+					class="uk.co.gridkey.api.McuDetailsJSONFormatter"
+					method="onCall(java.util.Map,java.util.Map)" outputMimeType="application/json">
+					<java:args><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+				</java:invoke>
+			</when>
+			<otherwise>
+				<set-payload
+					value="Missing Credentials or Invalid Token"
+					doc:name="Missing Credentials or Invalid Token"
+					doc:id="874fc474-db5b-49e4-92ce-db53d02f3186" />
+				<set-variable value="401" doc:name="httpStatus - 401"
+					variableName="httpStatus" />
+			</otherwise>
+		</choice>
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				logException="true"
+				doc:name="On Error Propagate - Return Empty JSON data"
+				doc:id="7589eecf-434b-4afb-9918-7acedc67718e" type="ANY">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="be019542-092b-4c4b-9431-bf4e2921d6d0"
+					variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload"
+					doc:id="a9d28cef-0092-408c-8f97-da51cd66745e" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow
+		name="get:\v2\(dno)\(mcu)\available\(year):gridkey-cloud-config">
+		<java:invoke-static doc:name="ValidateToken"
+			doc:id="a53ca8fd-ead4-49b5-8f7c-d1501c717ed8"
+			class="uk.co.gridkey.token.ValidateToken"
+			method="validateToken(java.lang.String,java.lang.String,java.lang.String)"
+			target="validateToken">
+			<java:args><![CDATA[#[{
+	accessToken:attributes.headers['Authorization'],
+	email:attributes.headers['email'],
+	dno:attributes.uriParams.dno
+}]]]></java:args>
+		</java:invoke-static>
+		<choice doc:name="Check Access"
+			doc:id="4ba746b3-d6cf-4642-afe3-1eed0db6b555">
+			<when expression="#[vars.validateToken==true]">
+				<java:new doc:name="DataAvailableYearlyJSONFormatter"
+					doc:id="0f35e60b-3591-4bda-ad03-31a69171f339"
+					class="uk.co.gridkey.api.DataAvailableYearlyJSONFormatter"
+					constructor="DataAvailableYearlyJSONFormatter()"
+					target="dataAvailableYearlyJSONFormatter" />
+				<java:invoke doc:name="Get data and format as JSON"
+					doc:id="f2687e72-ae29-4b7a-9761-567c9c9f3165"
+					instance="#[vars.dataAvailableYearlyJSONFormatter]"
+					class="uk.co.gridkey.api.DataAvailableYearlyJSONFormatter"
+					method="onCall(java.util.Map,java.util.Map)" outputMimeType="application/json">
+					<java:args><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+				</java:invoke>
+			</when>
+			<otherwise>
+				<set-payload
+					value="Missing Credentials or Invalid Token"
+					doc:name="Missing Credentials or Invalid Token"
+					doc:id="23de52a5-c296-4ac6-908d-5f8dcf39bc58" />
+				<set-variable value="401" doc:name="httpStatus - 401"
+					variableName="httpStatus" />
+			</otherwise>
+		</choice>
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				logException="true"
+				doc:name="On Error Propagate - Return Empty JSON data"
+				doc:id="a43b3648-b911-4061-a3aa-f1286b542e7b" type="ANY">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="882e32eb-add7-4ebc-ae55-afba9245485d"
+					variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload"
+					doc:id="e68c6ec9-77bb-40e0-b5b4-476d18a640e3" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow
+		name="get:\v2\(dno)\(mcu)\available\(year)\(month):gridkey-cloud-config">
+		<java:invoke-static doc:name="ValidateToken"
+			doc:id="665d05b6-db45-4e7b-8b65-ea55faaff909"
+			class="uk.co.gridkey.token.ValidateToken"
+			method="validateToken(java.lang.String,java.lang.String,java.lang.String)"
+			target="validateToken">
+			<java:args><![CDATA[#[{
+	accessToken:attributes.headers['Authorization'],
+	email:attributes.headers['email'],
+	dno:attributes.uriParams.dno
+}]]]></java:args>
+		</java:invoke-static>
+		<choice doc:name="Check Access"
+			doc:id="2555fadc-b733-40c0-af12-12b2d2e1ec5d">
+			<when expression="#[vars.validateToken==true]">
+				<java:new doc:name="DataAvailableMonthlyJSONFormatter"
+					doc:id="f961426d-3f04-4fcf-90a1-0b2ae6e7127c"
+					class="uk.co.gridkey.api.DataAvailableMonthlyJSONFormatter"
+					constructor="DataAvailableMonthlyJSONFormatter()"
+					target="dataAvailableMonthlyJSONFormatter" />
+				<java:invoke doc:name="Get data and format as JSON"
+					doc:id="aa6c83aa-8dc7-4f11-888d-5d7e8979cc09"
+					instance="#[vars.dataAvailableMonthlyJSONFormatter]"
+					class="uk.co.gridkey.api.DataAvailableMonthlyJSONFormatter"
+					method="onCall(java.util.Map,java.util.Map)" outputMimeType="application/json">
+					<java:args><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+				</java:invoke>
+			</when>
+			<otherwise>
+				<set-payload
+					value="Missing Credentials or Invalid Token"
+					doc:name="Missing Credentials or Invalid Token"
+					doc:id="90ab99fb-c726-4671-b36b-910cff688c17" />
+				<set-variable value="401" doc:name="httpStatus - 401"
+					variableName="httpStatus" />
+			</otherwise>
+		</choice>
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				logException="true"
+				doc:name="On Error Propagate - Return Empty JSON data"
+				doc:id="120f0a85-1ac8-47a3-bbb1-66c5843a3c28" type="ANY">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="cd090508-ee13-4db6-9897-38a52c5e56ed"
+					variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload"
+					doc:id="a37c94a2-0c50-4dcb-8bb5-47ee72c1faec" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow
+		name="get:\v2\(dno)\(mcu)\decoded\(start)\(end)\(params):gridkey-cloud-config">
+		<java:invoke-static doc:name="ValidateToken"
+			doc:id="3d1a75b2-0782-4f4a-95b4-37adc6d9d757"
+			class="uk.co.gridkey.token.ValidateToken"
+			method="validateToken(java.lang.String,java.lang.String,java.lang.String)"
+			target="validateToken">
+			<java:args><![CDATA[#[{
+	accessToken:attributes.headers['Authorization'],
+	email:attributes.headers['email'],
+	dno:attributes.uriParams.dno
+}]]]></java:args>
+		</java:invoke-static>
+		<choice doc:name="Check Access"
+			doc:id="46ce753b-3e25-46e6-852b-6da2858ef511">
+			<when expression="#[vars.validateToken==true]">
+				<java:new doc:name="DecodedMessageDataJSONFormatter"
+					doc:id="c2a9033a-e4b9-416f-843f-c9f00c9d7278"
+					class="uk.co.gridkey.api.DecodedMessageDataJSONFormatter"
+					constructor="DecodedMessageDataJSONFormatter()"
+					target="decodedMessageDataJSONFormatter" />
+				<java:invoke doc:name="Get data and format as JSON"
+					doc:id="8257c9fe-9100-4ba8-933e-61eccf90e000"
+					instance="#[vars.decodedMessageDataJSONFormatter]"
+					class="uk.co.gridkey.api.DecodedMessageDataJSONFormatter"
+					method="onCall(java.util.Map,java.util.Map)" outputMimeType="application/json">
+					<java:args><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+				</java:invoke>
+			</when>
+			<otherwise>
+				<set-payload
+					value="Missing Credentials or Invalid Token"
+					doc:name="Missing Credentials or Invalid Token"
+					doc:id="a6fd6779-2957-4afc-b54a-fabc270cad02" />
+				<set-variable value="401" doc:name="httpStatus - 401"
+					variableName="httpStatus" />
+			</otherwise>
+		</choice>
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				logException="true"
+				doc:name="On Error Propagate - Return Empty JSON data"
+				doc:id="3fd5d22b-dce3-49e9-8667-e80f2e7b364c" type="ANY">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="7b9acb3a-fc2a-4f58-922c-2856394a061a"
+					variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload"
+					doc:id="7ef606c9-7db8-4d0e-b787-acef9a418899" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow
+		name="get:\v2\(dno)\(mcu)\raw\(date)\(type):gridkey-cloud-config">
+		<java:invoke-static doc:name="ValidateToken"
+			doc:id="4e69a719-668d-4672-932b-91fffc71da40"
+			class="uk.co.gridkey.token.ValidateToken"
+			method="validateToken(java.lang.String,java.lang.String,java.lang.String)"
+			target="validateToken">
+			<java:args><![CDATA[#[{
+	accessToken:attributes.headers['Authorization'],
+	email:attributes.headers['email'],
+	dno:attributes.uriParams.dno
+}]]]></java:args>
+		</java:invoke-static>
+		<choice doc:name="Check Access"
+			doc:id="f8c19449-9432-4af7-8143-098d6a123ec1">
+			<when expression="#[vars.validateToken==true]">
+				<java:new doc:name="RawMessageDataJSONFormatter"
+					doc:id="3fe77046-5f86-4499-ab5d-dcb60bed5b1d"
+					class="uk.co.gridkey.api.RawMessageDataJSONFormatter"
+					constructor="RawMessageDataJSONFormatter()"
+					target="rawMessageDataJSONFormatter" />
+				<java:invoke doc:name="Get data and format as JSON"
+					doc:id="17c7d96e-1254-4dd2-8a9c-2a0d4bad3861"
+					instance="#[vars.rawMessageDataJSONFormatter]"
+					class="uk.co.gridkey.api.RawMessageDataJSONFormatter"
+					method="onCall(java.util.Map,java.util.Map)" outputMimeType="application/json">
+					<java:args><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+				</java:invoke>
+			</when>
+			<otherwise>
+				<set-payload
+					value="Missing Credentials or Invalid Token"
+					doc:name="Missing Credentials or Invalid Token"
+					doc:id="6cf126a0-8d8e-4d8f-9724-c16849eb453e" />
+				<set-variable value="401" doc:name="httpStatus - 401"
+					variableName="httpStatus" />
+			</otherwise>
+		</choice>
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				logException="true"
+				doc:name="On Error Propagate - Return Empty JSON data"
+				doc:id="4769758c-ce3d-4808-849f-067ee97e1a4d" type="ANY">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="de4590a5-54e1-4a12-ae1d-5ca3d9e3c9f7"
+					variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload"
+					doc:id="926c764f-3dff-4dd2-ab6a-63b484ca36da" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow
+		name="get:\v2\(dno)\summary\(start)\(end):gridkey-cloud-config">
+		<java:invoke-static doc:name="ValidateToken"
+			doc:id="bb9c3310-1dbb-4b0b-8ca4-ba36ab83be31"
+			class="uk.co.gridkey.token.ValidateToken"
+			method="validateToken(java.lang.String,java.lang.String,java.lang.String)"
+			target="validateToken">
+			<java:args><![CDATA[#[{
+	accessToken:attributes.headers['Authorization'],
+	email:attributes.headers['email'],
+	dno:attributes.uriParams.dno
+}]]]></java:args>
+		</java:invoke-static>
+		<choice doc:name="Check Access"
+			doc:id="e8bf39c3-6c3d-455b-a82e-60c9b51c9b67">
+			<when expression="#[vars.validateToken==true]">
+				<java:new doc:name="DTFSummaryDataJSONFormatter"
+					doc:id="cd59fc42-71b8-4a46-a4fe-c09e4f0fb6e2"
+					class="uk.co.gridkey.api.DTFSummaryDataJSONFormatter"
+					constructor="DTFSummaryDataJSONFormatter()"
+					target="dTFSummaryDataJSONFormatter" />
+				<java:invoke doc:name="Summary Data Process"
+					doc:id="317a12a5-b84a-4d61-9adc-2a47c0b5c726"
+					instance="#[vars.dTFSummaryDataJSONFormatter]"
+					class="uk.co.gridkey.api.DTFSummaryDataJSONFormatter"
+					method="onCall(java.util.Map,java.util.Map)" outputMimeType="application/json">
+					<java:args><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+				</java:invoke>
+			</when>
+			<otherwise>
+				<set-payload
+					value="Missing Credentials or Invalid Token"
+					doc:name="Missing Credentials or Invalid Token"
+					doc:id="f6337740-d0b0-454e-8943-bec319a45903" />
+				<set-variable value="401" doc:name="httpStatus - 401"
+					variableName="httpStatus" />
+			</otherwise>
+		</choice>
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				logException="true"
+				doc:name="On Error Propagate - Return Empty JSON data"
+				doc:id="3540e69e-ea0f-4f98-9b15-402f6c7b151b" type="ANY">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="cd0afc51-31cf-4d47-b1b7-c56de1347e41"
+					variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload"
+					doc:id="390f7075-f20d-4d85-b01d-cdd5751186a7" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow
+		name="get:\v2\(dno)\(mcu)\histogram\(start)\(end):gridkey-cloud-config">
+		<java:invoke-static doc:name="ValidateToken"
+			doc:id="37115cdf-dad8-4f6d-8af4-0660c9b683f0"
+			class="uk.co.gridkey.token.ValidateToken"
+			method="validateToken(java.lang.String,java.lang.String,java.lang.String)"
+			target="validateToken">
+			<java:args><![CDATA[#[{
+	accessToken:attributes.headers['Authorization'],
+	email:attributes.headers['email'],
+	dno:attributes.uriParams.dno
+}]]]></java:args>
+		</java:invoke-static>
+		<choice doc:name="Check Access"
+			doc:id="18c055c2-bdef-4121-afd6-5ff40025bec7">
+			<when expression="#[vars.validateToken==true]">
+				<java:new doc:name="HistogramJSONFormatter"
+					doc:id="11ab91aa-7ee6-45dd-9551-5efc33748b1a"
+					class="uk.co.gridkey.api.HistogramJSONFormatter"
+					constructor="HistogramJSONFormatter()"
+					target="histogramJSONFormatter" />
+				<java:invoke doc:name="Histogram Process"
+					doc:id="565b3f7e-55c7-4e81-9251-81c1e71b90ad"
+					instance="#[vars.histogramJSONFormatter]"
+					class="uk.co.gridkey.api.HistogramJSONFormatter"
+					method="onCall(java.util.Map,java.util.Map)" outputMimeType="application/json">
+					<java:args><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+				</java:invoke>
+			</when>
+			<otherwise>
+				<set-payload
+					value="Missing Credentials or Invalid Token"
+					doc:name="Missing Credentials or Invalid Token"
+					doc:id="4492368b-4d14-43f0-a9de-d7fd45b1c255" />
+				<set-variable value="401" doc:name="httpStatus - 401"
+					variableName="httpStatus" />
+			</otherwise>
+		</choice>
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				logException="true"
+				doc:name="On Error Propagate - Return Empty JSON data"
+				doc:id="b5239e4c-6fcd-4341-924d-8492b79c2e68" type="ANY">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="098fa3e8-7ca8-4367-bff2-914d993b67f5"
+					variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload"
+					doc:id="d2b6d160-6bae-404e-b4fa-88d1659bbc10" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow
+		name="get:\v2\(dno)\(mcu)\chronologyplot\(start)\(end):gridkey-cloud-config">
+		<java:invoke-static doc:name="ValidateToken"
+			doc:id="0bc56dee-d6d4-4709-b4dd-7e16f7fac2f4"
+			class="uk.co.gridkey.token.ValidateToken"
+			method="validateToken(java.lang.String,java.lang.String,java.lang.String)"
+			target="validateToken">
+			<java:args><![CDATA[#[{
+	accessToken:attributes.headers['Authorization'],
+	email:attributes.headers['email'],
+	dno:attributes.uriParams.dno
+}]]]></java:args>
+		</java:invoke-static>
+		<choice doc:name="Check Access"
+			doc:id="77e00cc6-3bd7-4caf-9621-4e054f108f30">
+			<when expression="#[vars.validateToken==true]">
+				<java:new doc:name="ChronologyPlotJSONFormatter"
+					doc:id="e68b48d1-b2f2-4ffa-8c2b-2b061c173a74"
+					class="uk.co.gridkey.api.ChronologyPlotJSONFormatter"
+					constructor="ChronologyPlotJSONFormatter()"
+					target="chronologyPlotJSONFormatter" />
+				<java:invoke doc:name="Chronological Process"
+					doc:id="3da9373b-ae30-424c-b664-981beac5a81b"
+					instance="#[vars.chronologyPlotJSONFormatter]"
+					class="uk.co.gridkey.api.ChronologyPlotJSONFormatter"
+					method="onCall(java.util.Map,java.util.Map)" outputMimeType="application/json">
+					<java:args><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+				</java:invoke>
+			</when>
+			<otherwise>
+				<set-payload
+					value="Missing Credentials or Invalid Token"
+					doc:name="Missing Credentials or Invalid Token"
+					doc:id="912a45de-0851-41bb-8a30-2ba0d9ac0c76" />
+				<set-variable value="401" doc:name="httpStatus - 401"
+					variableName="httpStatus" />
+			</otherwise>
+		</choice>
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				logException="true"
+				doc:name="On Error Propagate - Return Empty JSON data"
+				doc:id="14796998-d163-4c32-a607-81bf404dcdee" type="ANY">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="8bdaf063-5f7b-419d-a8bf-c50918242aee"
+					variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload"
+					doc:id="c64bf1ff-5c69-49e4-b792-f1e648f44b55" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow
+		name="get:\v2\(dno)\(mcu)\histogramV1\(start)\(end)\(param):gridkey-cloud-config">
+		<java:invoke-static doc:name="ValidateToken"
+			doc:id="e1bff145-da9c-42d6-a100-f429f390bedb"
+			class="uk.co.gridkey.token.ValidateToken"
+			method="validateToken(java.lang.String,java.lang.String,java.lang.String)"
+			target="validateToken">
+			<java:args><![CDATA[#[{
+	accessToken:attributes.headers['Authorization'],
+	email:attributes.headers['email'],
+	dno:attributes.uriParams.dno
+}]]]></java:args>
+		</java:invoke-static>
+		<choice doc:name="Check Access"
+			doc:id="ecb18f94-6288-48d8-b418-8957d6722683">
+			<when expression="#[vars.validateToken==true]">
+				<java:new doc:name="HistogramV1JSONFormatter"
+					doc:id="bf331ada-f554-45f1-8b1c-9ad7bdecdc42"
+					class="uk.co.gridkey.api.HistogramV1JSONFormatter"
+					constructor="HistogramV1JSONFormatter()"
+					target="histogramV1JSONFormatter" />
+				<java:invoke doc:name="Histogram V1 Process"
+					doc:id="4fbefb80-4436-4f2b-bff1-657c8bdadc3d"
+					instance="#[vars.histogramV1JSONFormatter]"
+					class="uk.co.gridkey.api.HistogramV1JSONFormatter"
+					method="onCall(java.util.Map,java.util.Map)" outputMimeType="application/json">
+					<java:args><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+	cassConnection:vars.cassConnection
+}]]]></java:args>
+				</java:invoke>
+			</when>
+			<otherwise>
+				<set-payload
+					value="Missing Credentials or Invalid Token"
+					doc:name="Missing Credentials or Invalid Token"
+					doc:id="8220e71b-7d17-475f-bd34-0d7594eb8100" />
+				<set-variable value="401" doc:name="httpStatus - 401"
+					variableName="httpStatus" />
+			</otherwise>
+		</choice>
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				logException="true"
+				doc:name="On Error Propagate - Return Empty JSON data"
+				doc:id="54fe93cf-079d-4e90-8a8a-7314f3218b2f" type="ANY">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="43bfd555-f1b0-4cfb-91eb-f21c0fe624cb"
+					variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload"
+					doc:id="083e6309-4794-481b-81be-21b98bf0b642" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="get:\v2\(dno)\(mcu)\reports:gridkey-cloud-config">
+		<java:invoke-static doc:name="ValidateToken"
+			doc:id="c8e06d4a-dd5c-49ea-b7bd-c5bdbca71fd4"
+			class="uk.co.gridkey.token.ValidateToken"
+			method="validateToken(java.lang.String,java.lang.String,java.lang.String)"
+			target="validateToken">
+			<java:args><![CDATA[#[{
+	accessToken:attributes.headers['Authorization'],
+	email:attributes.headers['email'],
+	dno:attributes.uriParams.dno
+}]]]></java:args>
+		</java:invoke-static>
+		<choice doc:name="Check Access"
+			doc:id="9fad9b51-c4a4-458b-a62f-afe4d48163fa">
+			<when expression="#[vars.validateToken==true]">
+				<java:new doc:name="ReportsDataJSONFormatter"
+					doc:id="cf7a38f6-b91e-462b-aed9-1d1ec60fcc00"
+					class="uk.co.gridkey.api.ReportsDataJSONFormatter"
+					constructor="ReportsDataJSONFormatter()"
+					target="reportsDataJSONFormatter" />
+				<java:invoke doc:name="Generate Reports Data"
+					doc:id="2009e6da-3126-4e83-b02b-bd5d3be18211"
+					instance="#[vars.reportsDataJSONFormatter]"
+					class="uk.co.gridkey.api.ReportsDataJSONFormatter"
+					method="onCall(java.util.Map)" outputMimeType="application/json">
+					<java:args><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+}]]]></java:args>
+				</java:invoke>
+			</when>
+			<otherwise>
+				<set-payload
+					value="Missing Credentials or Invalid Token"
+					doc:name="Missing Credentials or Invalid Token"
+					doc:id="8d901b2a-31d0-4d16-950d-c5391a73bed8" />
+				<set-variable value="401" doc:name="httpStatus - 401"
+					variableName="httpStatus" />
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="get:\v2\downloadreports\(param):gridkey-cloud-config">
+		<java:new doc:name="Downloader"
+			doc:id="39ce7f09-cd45-4efc-905d-3f07d2ee092d"
+			class="uk.co.gridkey.api.Downloader" constructor="Downloader()"
+			target="downloader" />
+		<java:invoke doc:name="Download Reports"
+			doc:id="51c0d855-3e99-4a4a-a926-8edf5b958f31"
+			instance="#[vars.downloader]" class="uk.co.gridkey.api.Downloader"
+			method="onCall(java.util.Map)" outputMimeType="application/json">
+			<java:args><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+}]]]></java:args>
+		</java:invoke>
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				logException="true"
+				doc:name="On Error Propagate - Return Empty JSON data"
+				doc:id="cb2f1879-e307-478a-a143-f38e872a81ff" type="ANY">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="eb502c46-fd84-4c3a-87e8-692a5cb1c863"
+					variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload"
+					doc:id="5068abd1-95c1-48a5-a60b-8afcaf366a90" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow
+		name="get:\v2\(dno)\(mcu)\generatereport\(start)\(end)\(param):gridkey-cloud-config">
+		<java:invoke-static doc:name="ValidateToken"
+			doc:id="0bb3cf44-8ad2-40b7-b02f-55331f364f0f"
+			class="uk.co.gridkey.token.ValidateToken"
+			method="validateToken(java.lang.String,java.lang.String,java.lang.String)"
+			target="validateToken">
+			<java:args><![CDATA[#[{
+	accessToken:attributes.headers['Authorization'],
+	email:attributes.headers['email'],
+	dno:attributes.uriParams.dno
+}]]]></java:args>
+		</java:invoke-static>
+		<choice doc:name="Check Access"
+			doc:id="a7ad62e5-6bb1-44d6-a203-4faf9e4e5334">
+			<when expression="#[vars.validateToken==true]">
+				<java:new doc:name="GenerateReport"
+					doc:id="9e421a92-7e21-4e9b-acb6-7a1328ce4677"
+					class="uk.co.gridkey.api.GenerateReport"
+					constructor="GenerateReport()" target="generateReport" />
+				<java:invoke doc:name="Generate Reports"
+					doc:id="bffce7cd-301e-49b0-a3f9-16a4e5e1fffc"
+					instance="#[vars.generateReport]"
+					class="uk.co.gridkey.api.GenerateReport"
+					method="onCall(java.util.Map)" outputMimeType="application/json">
+					<java:args><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+}]]]></java:args>
+				</java:invoke>
+			</when>
+			<otherwise>
+				<set-payload
+					value="Missing Credentials or Invalid Token"
+					doc:name="Missing Credentials or Invalid Token"
+					doc:id="656f0e4a-75ed-4e08-98ba-4742408f2848" />
+				<set-variable value="401" doc:name="httpStatus - 401"
+					variableName="httpStatus" />
+			</otherwise>
+		</choice>
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				logException="true"
+				doc:name="On Error Propagate - Return Empty JSON data"
+				doc:id="078df4cb-f10d-41d0-9dc7-235320b34ae1" type="ANY">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="a3963e83-79eb-4eb2-bdb1-a2b8f4c70097"
+					variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload"
+					doc:id="1479ae0e-c2fa-48c8-ac8c-7b6c2fb19f2f" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow
+		name="get:\v2\(dno)\(mcu)\prediction\(start)\(end)\(param):gridkey-cloud-config">
+		<java:invoke-static doc:name="ValidateToken"
+			doc:id="942174bb-9226-4ecf-8c68-fd7c3d237694"
+			class="uk.co.gridkey.token.ValidateToken"
+			method="validateToken(java.lang.String,java.lang.String,java.lang.String)"
+			target="validateToken">
+			<java:args><![CDATA[#[{
+	accessToken:attributes.headers['Authorization'],
+	email:attributes.headers['email'],
+	dno:attributes.uriParams.dno
+}]]]></java:args>
+		</java:invoke-static>
+		<choice doc:name="Check Access"
+			doc:id="e6f5933f-7fc1-4025-b92d-532860717973">
+			<when expression="#[vars.validateToken==true]">
+				<java:new doc:name="PredictionDataJSONFormatter"
+					doc:id="2a133092-31af-40b8-8e72-d116eac7a5a3"
+					class="uk.co.gridkey.api.PredictionDataJSONFormatter"
+					constructor="PredictionDataJSONFormatter()"
+					target="predictionDataJSONFormatter" />
+				<java:invoke doc:name="Predictions"
+					doc:id="36c5bdf3-cb2b-4375-b188-c69ff94f848e"
+					instance="#[vars.predictionDataJSONFormatter]"
+					class="uk.co.gridkey.api.PredictionDataJSONFormatter"
+					method="onCall(java.util.Map)" outputMimeType="application/json">
+					<java:args><![CDATA[#[{
+	uriAttributes:attributes.uriParams,
+}]]]></java:args>
+				</java:invoke>
+			</when>
+			<otherwise>
+				<set-payload
+					value="Missing Credentials or Invalid Token"
+					doc:name="Missing Credentials or Invalid Token"
+					doc:id="bfeba36f-7013-4755-b15e-09d4d8a6d624" />
+				<set-variable value="401" doc:name="httpStatus - 401"
+					variableName="httpStatus" />
+			</otherwise>
+		</choice>
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				logException="true"
+				doc:name="On Error Propagate - Return Empty JSON data"
+				doc:id="abc77f59-866d-4f56-8309-37a7e1b0dcd3" type="ANY">
+				<set-variable value="application/json"
+					doc:name="Set Variable"
+					doc:id="a467fa35-f9c5-450d-8e18-fce334cdc4c8"
+					variableName="Content-Type" />
+				<set-payload value="{}" doc:name="Set Payload"
+					doc:id="4cb7ce43-7556-422c-ae1f-6ecba75ea257" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>

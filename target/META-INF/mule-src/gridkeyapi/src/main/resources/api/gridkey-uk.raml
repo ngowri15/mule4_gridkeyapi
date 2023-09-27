@@ -1,0 +1,1074 @@
+#%RAML 0.8
+title: GridKey API
+version: v2
+baseUri: https://api.gridkey.uk
+mediaType: application/json
+/v2:  
+  get:
+    description: Lists the available DNOs within the database by querying the keyspaces within cassandra
+    responses:  
+          200:
+            body:
+              example: |
+                {
+                  "count": "5",
+                  "dnos": [
+                      "GRIDKEY1",
+                      "LUCYELEC",
+                      "LUCYDEMO",
+                      "LUCYTEST",
+                      "DEMOUNIT"
+                  ]
+                }       
+  /firmware/{type}/{revision}:
+      /store:        
+        post:
+          description: NOT RECOMMENDED TO USE THIS AT THE MOMENT, instead copy the file to the file system. However this is used to store the supplied firmware data on the file system in a folder name based upon the revision supplied. Content of POST is the binary file to store. If an exception occurs {} is returned. Otherwise 'success' or 'error' is returned to indicate that the that the request was successful or invalid
+          responses:
+            200:
+              body:
+                example: |
+                  success                            
+  /{dno}:
+    get:
+      description: Lists the MCUs available for the specified DNO along with any extra information about the specified DNO   
+      responses:
+        200:
+          body:
+            example: |
+              {
+                "dno": "LUCYDEMO",
+                "mcus": [
+                  {
+                    "name": "TestMCU",
+                    "description": "MCU used for Testing",
+                    "unit-type": "gridkey-mcu520",
+                    "unit-sn": "000123456789"
+                    
+                  },
+                  {
+                    "name": "MCUTest",
+                    "description": "Another MCU used for Testing",
+                    "unit-type": "gridkey-mcu520",
+                    "unit-sn": "000987654321"
+                  }
+                ]
+              }
+              
+    /transaction/preprepared:
+      /send:
+        post:
+          description: Used to send a prepared transaction string (INCLUDING UNLOCK CODE) to the list of MCUs in the body of the POST. If an exception occurs {} is returned. Otherwise 'success' or 'error' is returned to indicate that the that the request was successful or invalid
+          body:
+            application/json:
+              example: |
+                {
+                  "transactionString": "GingerbreadLatte 5200",
+                  "mcus": [
+                      "000298350001",
+                      "PAULBECKDEMO"
+                  ]
+                }   
+          responses:
+            200:
+              body:
+                example: |
+                  success
+                            
+    /firmware/{extension}/{revision}:
+      /send:
+        post:
+          description: Will check to see if there is a file available on the file system, based upon the extension and revision supplied. If so, a request will be sent to the specified MCUs. If an exception occurs {} is returned. Otherwise 'success' or 'error' is returned to indicate that the that the request was successful or invalid (i.e. no file exists to send)
+          body:
+            application/json:
+              example: |
+                {
+                  "mcus": [
+                      "000298350001",
+                      "PAULBECKDEMO"
+                  ]
+                }   
+          responses:
+            200:
+              body:
+                example: |
+                  success
+                                
+    /dashboard:
+      get:
+        description: Gets the dashboard data for the DNO for all MCUs. This includes measurement snapshots of the latest decoded data for each MCU
+        responses:
+          200:
+            body:
+              example: |
+                {
+                  "dno": "LUCYDEMO",
+                  "mcus": [
+                    {
+                      "unit-sn": "000443111432",
+                      "busbar-l1-voltage-mean": "245.5",
+                      "busbar-l2-voltage-mean": "243.2",
+                      "busbar-l3-voltage-mean": "233.1",
+                      "busbar-l1-current-mean": "23.3",
+                      "busbar-l2-current-mean": "90.4",
+                      "busbar-l3-current-mean": "14.9" 
+                    },
+                    {
+                      "unit-sn": "000452141142",
+                      "busbar-l1-voltage-mean": "235.5",
+                      "busbar-l2-voltage-mean": "253.2",
+                      "busbar-l3-voltage-mean": "243.1",
+                      "busbar-l1-current-mean": "33.2",
+                      "busbar-l2-current-mean": "60.9",
+                      "busbar-l3-current-mean": "84.9"
+                    },
+                    {
+                      "unit-sn": "000543122562",
+                      "busbar-l1-voltage-mean": "235.1",
+                      "busbar-l2-voltage-mean": "233.3",
+                      "busbar-l3-voltage-mean": "225.6",
+                      "busbar-l1-current-mean": "13.1",
+                      "busbar-l2-current-mean": "50.0",
+                      "busbar-l3-current-mean": "184.4"
+                    }
+                  ]                
+                }
+      /{mcu}:
+        get:
+          description: Gets the dashboard data for the specific MCU in a DNO. This includes measurement snapshots of the latest decoded data
+          responses:
+            200:
+              body:
+                example: |
+                  {
+                    "dno": "LUCYDEMO",
+                    "unit-sn": "000443111432",
+                    "busbar-l1-voltage-mean": "245.5",
+                    "busbar-l2-voltage-mean": "243.2",
+                    "busbar-l3-voltage-mean": "233.1",
+                    "busbar-l1-current-mean": "23.3",
+                    "busbar-l2-current-mean": "90.4",
+                    "busbar-l3-current-mean": "14.9" 
+                  }                
+              
+    /{mcu}:
+      get:
+        description: Gets details about the MCU specified
+        responses:
+          200:
+            body:
+              example: |
+                {
+                  "dno": "LUCYDEMO",
+                  "name": "TestMCU",
+                  "description": "MCU used for Testing",
+                  "unit-type": "gridkey-mcu520",
+                  "unit-sn": "000123456789"
+                }
+              
+    /{mcu}/detailed/{day}/{time}/{duration}:
+      /send:
+        post:
+          description: Send a detailed report request to a given MCU. The day of the week as a single digit integer (Sunday = 0), time in the form HH:MM, and duration in minutes
+          responses:
+            200:
+              body:
+                example: |
+                  success
+
+    /{mcu}/detailed:
+      /latest:
+        get:
+          description: Returns the latest detailed data received from the specified MCU. Data is the raw file contents including the header which then needs decoding
+          responses:
+            200:
+              body:
+                example: |
+                  {
+                    "dno": "LUCYDEMO",
+                    "mcu": "000303230156",
+                    "type": "detailed",
+                    "data": "E1D2C3B4800501005A027C02247A012441503530303530393635303030303034454E57504F574552303030333033323330313536020C313431303036313335363032050C010001000000000100000000062E535331342033454C2020544B313233343539383736352B35312E35393135343931362B3030302E34393334383335093040008000FFFF40008000FFFF807F807AFFFF007D0078FFFF08001000FFFF907E007DFFFFF07D007DFFFF70810083FFFF0A20010040000800FFFF907E007DFFFFF07D007DFFFF70810083FFFFFF7FF87FFFFF0A20020040000800FFFF907E007DFFFFF07D007DFFFF70810083FFFFFF7FF87FFFFF0A20030040000800FFFF907E007DFFFFF07D007DFFFF70810083FFFFFF7FF87FFFFF0A20040040000800FFFF907E007DFFFFF07D007DFFFF70810083FFFFFF7FF87FFFFF0A20050040000800FFFF907E007DFFFFF07D007DFFFF70810083FFFFFF7FF87FFFFF0B0C907E007DFFFFF07D007DFFFF0C24303030333033323330313536416464204465736372697074696F6E2020202020202020200D220100416464204964656E746974792F4465736372697074696F6E20202020202020200D220200416464204964656E746974792F4465736372697074696F6E20202020202020200D220300416464204964656E746974792F4465736372697074696F6E20202020202020200D220400416464204964656E746974792F4465736372697074696F6E20202020202020200D220500416464204964656E746974792F4465736372697074696F6E202020202020202000000000000000000000000000000000000000000000"
+                  }  
+
+    /{mcu}/transaction/preprepared:
+      /send:
+        post:
+          description: Used to send a prepared transaction string (INCLUDING UNLOCK CODE) to a given MCU. If an exception occurs {} is returned. Otherwise 'success' or 'error' is returned to indicate that the that the request was successful or invalid
+          responses:
+            200:
+              body:
+                example: |
+                  success
+                  
+    /{mcu}/transaction/{type}:
+      /send:
+        post:
+          description: Used to send the specific transaction request to the MCU. If an exception occurs {} is returned. Otherwise 'success' or 'error' is returned to indicate that the that the request was successful or invalid
+          responses:
+            200:
+              body:
+                example: |
+                  success
+    
+    /{mcu}/transaction/{type}/params:
+      /send:
+        post:
+          description: Used to send the specific transaction request to the MCU with the supplied parameters in the body. If an exception occurs {} is returned. Otherwise 'success' or 'error' is returned to indicate that the that the request was successful or invalid
+          responses:
+            200:
+              body:
+                example: |
+                  success
+              
+    /{mcu}/config/{type}:
+      /store:
+        post:
+          description: Used to store the supplied configuration data on the file system. Content of POST is the binary file to store. If an exception occurs {} is returned. Otherwise 'success' or 'error' is returned to indicate that the that the request was successful or invalid
+        
+      /send:
+        post:
+          description: Will check to see if there is a file available on the file system to send, if so, it will be sent to the specified MCU. If an exception occurs {} is returned. Otherwise 'success' or 'error' is returned to indicate that the that the request was successful or invalid
+          responses:
+            200:
+              body:
+                example: |
+                  success
+                  
+      /now:
+        get:
+          description: WARNING - DEPRECATED - USE /{mcu}/latest/{type} - Returns the latest decoded configuration file. Which configuration file is returned depends on the config type supplied i.e. 'user' or 'fact'. In addition to the decoded 'data' section, the 'dno', 'mcu' and message 'type' are returned in separate fields
+          responses:
+            200:
+              body:
+                example: |
+                  {
+                    "dno": "LUCYDEMO",
+                    "mcu": "000123456789",
+                    "type": "user",
+                    "data": {
+                      "datetime": "140905135922",
+                      "periodic-reporting-period": "1",
+                      "periodic-report-type": "1",
+                      "feeder-1-in-use": "1",
+                      "feeder-2-in-use": "0",
+                      "feeder-3-in-use": "0",
+                      "feeder-4-in-use": "0",
+                      "feeder-5-in-use": "0",
+                      "feeder-1-nc-in-use": "1",
+                      "feeder-2-nc-in-use": "1",
+                      "feeder-3-nc-in-use": "1",
+                      "feeder-4-nc-in-use": "1",
+                      "feeder-5-nc-in-use": "1",
+                      "substation-post-Code": "SS143EL",
+                      "substation-grid-ID": "TK",
+                      "substation-grid-Northing": "12345",
+                      "substation-grid-Easting": "98765",
+                      "substation-latitude": "+51.59154916",
+                      "substation-longitude": "+000.4934835",
+                      "busbar-low-volt-1-threshold": "1",
+                      "busbar-low-volt-1-reset-threshold": "2",
+                      "busbar-low-volt-1-time-threshold": "255",
+                      "busbar-low-volt-1-time-reset-threshold": "255",
+                      "busbar-low-volt-2-threshold": "1",
+                      "busbar-low-volt-2-reset-threshold": "2",
+                      "busbar-low-volt-2-time-threshold": "255",
+                      "busbar-low-volt-2-time-reset-threshold": "255",
+                      "busbar-high-volt-1-threshold": "510",
+                      "busbar-high-volt-1-reset-threshold": "490",
+                      "busbar-high-volt-1-time-threshold": "255",
+                      "busbar-high-volt-1-time-reset-threshold": "255",
+                      "busbar-high-volt-2-threshold": "100",
+                      "busbar-high-volt-2-reset-threshold": "480",
+                      "busbar-high-volt-2-time-threshold": "255",
+                      "busbar-high-volt-2-time-reset-threshold": "255",
+                      "busbar-low-current-threshold": "1",
+                      "busbar-low-current-reset-threshold": "2",
+                      "busbar-low-current-time-threshold": "255",
+                      "busbar-low-current-time-reset-threshold": "255",
+                      "busbar-high-current-1-threshold": "4050",
+                      "busbar-high-current-1-reset-threshold": "4000",
+                      "busbar-high-current-1-time-threshold": "255",
+                      "busbar-high-current-1-time-reset-threshold": "255",
+                      "busbar-high-current-2-threshold": "4030",
+                      "busbar-high-current-2-reset-threshold": "4000",
+                      "busbar-high-current-2-time-threshold": "255",
+                      "busbar-high-current-2-time-reset-threshold": "255",
+                      "busbar-neg-current-threshold": "-4050",
+                      "busbar-neg-current-reset-threshold": "-4000",
+                      "busbar-neg-current-time-threshold": "255",
+                      "busbar-neg-current-time-reset-threshold": "255",
+                      "unused0": "0",
+                      "feeder-1-low-current-threshold": "8",
+                      "feeder-1-low-current-reset-threshold": "1",
+                      "feeder-1-low-current-time-threshold": "255",
+                      "feeder-1-low-current-time-reset-threshold": "255",
+                      "feeder-1-high-current-1-threshold": "4050",
+                      "feeder-1-high-current-1-reset-threshold": "4000",
+                      "feeder-1-high-current-1-time-threshold": "255",
+                      "feeder-1-high-current-1-time-reset-threshold": "255",
+                      "feeder-1-high-current-2-threshold": "4030",
+                      "feeder-1-high-current-2-reset-threshold": "4000",
+                      "feeder-1-high-current-2-time-threshold": "255",
+                      "feeder-1-high-current-2-time-reset-threshold": "255",
+                      "feeder-1-neg-current-threshold": "-4050",
+                      "feeder-1-neg-current-reset-threshold": "-4000",
+                      "feeder-1-neg-current-time-threshold": "255",
+                      "feeder-1-neg-current-time-reset-threshold": "255",
+                      "feeder-1-neut-mismatch-threshold": "4095.875",
+                      "feeder-1-neut-mismatch-reset-threshold": "4095",
+                      "feeder-1-neut-mismatch-time-threshold": "255",
+                      "feeder-1-neut-mismatch-time-reset-threshold": "255",
+                      "feeder-2-low-current-threshold": "8",
+                      "feeder-2-low-current-reset-threshold": "1",
+                      "feeder-2-low-current-time-threshold": "255",
+                      "feeder-2-low-current-time-reset-threshold": "255",
+                      "feeder-2-high-current-1-threshold": "4050",
+                      "feeder-2-high-current-1-reset-threshold": "4000",
+                      "feeder-2-high-current-1-time-threshold": "255",
+                      "feeder-2-high-current-1-time-reset-threshold": "255",
+                      "feeder-2-high-current-2-threshold": "4030",
+                      "feeder-2-high-current-2-reset-threshold": "4000",
+                      "feeder-2-high-current-2-time-threshold": "255",
+                      "feeder-2-high-current-2-time-reset-threshold": "255",
+                      "feeder-2-neg-current-threshold": "-4050",
+                      "feeder-2-neg-current-reset-threshold": "-4000",
+                      "feeder-2-neg-current-time-threshold": "255",
+                      "feeder-2-neg-current-time-reset-threshold": "255",
+                      "feeder-2-neut-mismatch-threshold": "4095.875",
+                      "feeder-2-neut-mismatch-reset-threshold": "4095",
+                      "feeder-2-neut-mismatch-time-threshold": "255",
+                      "feeder-2-neut-mismatch-time-reset-threshold": "255",
+                      "feeder-3-low-current-threshold": "8",
+                      "feeder-3-low-current-reset-threshold": "1",
+                      "feeder-3-low-current-time-threshold": "255",
+                      "feeder-3-low-current-time-reset-threshold": "255",
+                      "feeder-3-high-current-1-threshold": "4050",
+                      "feeder-3-high-current-1-reset-threshold": "4000",
+                      "feeder-3-high-current-1-time-threshold": "255",
+                      "feeder-3-high-current-1-time-reset-threshold": "255",
+                      "feeder-3-high-current-2-threshold": "4030",
+                      "feeder-3-high-current-2-reset-threshold": "4000",
+                      "feeder-3-high-current-2-time-threshold": "255",
+                      "feeder-3-high-current-2-time-reset-threshold": "255",
+                      "feeder-3-neg-current-threshold": "-4050",
+                      "feeder-3-neg-current-reset-threshold": "-4000",
+                      "feeder-3-neg-current-time-threshold": "255",
+                      "feeder-3-neg-current-time-reset-threshold": "255",
+                      "feeder-3-neut-mismatch-threshold": "4095.875",
+                      "feeder-3-neut-mismatch-reset-threshold": "4095",
+                      "feeder-3-neut-mismatch-time-threshold": "255",
+                      "feeder-3-neut-mismatch-time-reset-threshold": "255",
+                      "feeder-4-low-current-threshold": "8",
+                      "feeder-4-low-current-reset-threshold": "1",
+                      "feeder-4-low-current-time-threshold": "255",
+                      "feeder-4-low-current-time-reset-threshold": "255",
+                      "feeder-4-high-current-1-threshold": "4050",
+                      "feeder-4-high-current-1-reset-threshold": "4000",
+                      "feeder-4-high-current-1-time-threshold": "255",
+                      "feeder-4-high-current-1-time-reset-threshold": "255",
+                      "feeder-4-high-current-2-threshold": "4030",
+                      "feeder-4-high-current-2-reset-threshold": "4000",
+                      "feeder-4-high-current-2-time-threshold": "255",
+                      "feeder-4-high-current-2-time-reset-threshold": "255",
+                      "feeder-4-neg-current-threshold": "-4050",
+                      "feeder-4-neg-current-reset-threshold": "-4000",
+                      "feeder-4-neg-current-time-threshold": "255",
+                      "feeder-4-neg-current-time-reset-threshold": "255",
+                      "feeder-4-neut-mismatch-threshold": "4095.875",
+                      "feeder-4-neut-mismatch-reset-threshold": "4095",
+                      "feeder-4-neut-mismatch-time-threshold": "255",
+                      "feeder-4-neut-mismatch-time-reset-threshold": "255",
+                      "feeder-5-low-current-threshold": "8",
+                      "feeder-5-low-current-reset-threshold": "1",
+                      "feeder-5-low-current-time-threshold": "255",
+                      "feeder-5-low-current-time-reset-threshold": "255",
+                      "feeder-5-high-current-1-threshold": "4050",
+                      "feeder-5-high-current-1-reset-threshold": "4000",
+                      "feeder-5-high-current-1-time-threshold": "255",
+                      "feeder-5-high-current-1-time-reset-threshold": "255",
+                      "feeder-5-high-current-2-threshold": "4030",
+                      "feeder-5-high-current-2-reset-threshold": "4000",
+                      "feeder-5-high-current-2-time-threshold": "255",
+                      "feeder-5-high-current-2-time-reset-threshold": "255",
+                      "feeder-5-neg-current-threshold": "-4050",
+                      "feeder-5-neg-current-reset-threshold": "-4000",
+                      "feeder-5-neg-current-time-threshold": "255",
+                      "feeder-5-neg-current-time-reset-threshold": "255",
+                      "feeder-5-neut-mismatch-threshold": "4095.875",
+                      "feeder-5-neut-mismatch-reset-threshold": "4095",
+                      "feeder-5-neut-mismatch-time-threshold": "255",
+                      "feeder-5-neut-mismatch-time-reset-threshold": "255",
+                      "substation-high-current-1-threshold": "4050",
+                      "substation-high-current-1-reset-threshold": "4000",
+                      "substation-high-current-1-time-threshold": "255",
+                      "substation-high-current-1-time-reset-threshold": "255",
+                      "substation-high-current-2-threshold": "4030",
+                      "substation-high-current-2-reset-threshold": "4000",
+                      "substation-high-current-2-time-threshold": "255",
+                      "substation-high-current-2-time-reset-threshold": "255",
+                      "substation-identity": "spmainsite",
+                      "substation-description": "mcuinc-building",
+                      "feeder-1-reference": "1",
+                      "unused1": "0",
+                      "feeder-1-identity": "addidentity/description",
+                      "feeder-2-reference": "2",
+                      "unused2": "0",
+                      "feeder-2-identity": "addidentity/description",
+                      "feeder-3-reference": "3",
+                      "unused3": "0",
+                      "feeder-3-identity": "addidentity/description",
+                      "feeder-4-reference": "4",
+                      "unused4": "0",
+                      "feeder-4-identity": "addidentity/description",
+                      "feeder-5-reference": "5",
+                      "unused5": "0",
+                      "feeder-5-identity": "addidentity/description",
+                      "unit-fixed-ip-address": "127.0.0.1",
+                      "unit-subnet-mask": "255.255.255.0",
+                      "unit-fixed-ip-gateway": "127.0.0.1",
+                      "installation-note": "n/a"
+                    }
+                  }
+        /raw:
+          get:
+            description: WARNING - DEPRECATED - USE /{mcu}/latest/{type}/raw - Returns the latest raw configuration file. Which configuration file is returned depends on the config type supplied i.e. 'user' or 'fact'. In addition to the raw 'data' section, the 'dno', 'mcu' and message 'type' are returned in separate fields
+            responses:
+              200:
+                body:
+                  example: |
+                    {
+                      "dno": "LUCYDEMO",
+                      "mcu": "000303230156",
+                      "type": "user",
+                      "datetime": "140905135922",
+                      "data": "E1D2C3B4800501005A027C02247A012441503530303530393635303030303034454E57504F574552303030333033323330313536020C313431303036313335363032050C010001000000000100000000062E535331342033454C2020544B313233343539383736352B35312E35393135343931362B3030302E34393334383335093040008000FFFF40008000FFFF807F807AFFFF007D0078FFFF08001000FFFF907E007DFFFFF07D007DFFFF70810083FFFF0A20010040000800FFFF907E007DFFFFF07D007DFFFF70810083FFFFFF7FF87FFFFF0A20020040000800FFFF907E007DFFFFF07D007DFFFF70810083FFFFFF7FF87FFFFF0A20030040000800FFFF907E007DFFFFF07D007DFFFF70810083FFFFFF7FF87FFFFF0A20040040000800FFFF907E007DFFFFF07D007DFFFF70810083FFFFFF7FF87FFFFF0A20050040000800FFFF907E007DFFFFF07D007DFFFF70810083FFFFFF7FF87FFFFF0B0C907E007DFFFFF07D007DFFFF0C24303030333033323330313536416464204465736372697074696F6E2020202020202020200D220100416464204964656E746974792F4465736372697074696F6E20202020202020200D220200416464204964656E746974792F4465736372697074696F6E20202020202020200D220300416464204964656E746974792F4465736372697074696F6E20202020202020200D220400416464204964656E746974792F4465736372697074696F6E20202020202020200D220500416464204964656E746974792F4465736372697074696F6E202020202020202000000000000000000000000000000000000000000000"
+                    }
+                    
+    /{mcu}/latest/{type}:                 
+      get:
+        description: Returns the latest decoded file of the given message type/message ID. Which file is returned depends on the message type supplied i.e. 'user' or 'fact' or 'statstical'. In addition to the decoded 'data' section, the 'dno', 'mcu' and message 'type' are returned in separate fields
+        responses:
+          200:
+            body:
+              example: |
+                {
+                  "dno": "LUCYDEMO",
+                  "mcu": "000123456789",
+                  "type": "user",
+                  "data": {
+                    "datetime": "140905135922",
+                    "periodic-reporting-period": "1",
+                    "periodic-report-type": "1",
+                    "feeder-1-in-use": "1",
+                    "feeder-2-in-use": "0",
+                    "feeder-3-in-use": "0",
+                    "feeder-4-in-use": "0",
+                    "feeder-5-in-use": "0",
+                    "feeder-1-nc-in-use": "1",
+                    "feeder-2-nc-in-use": "1",
+                    "feeder-3-nc-in-use": "1",
+                    "feeder-4-nc-in-use": "1",
+                    "feeder-5-nc-in-use": "1",
+                    "substation-post-Code": "SS143EL",
+                    "substation-grid-ID": "TK",
+                    "substation-grid-Northing": "12345",
+                    "substation-grid-Easting": "98765",
+                    "substation-latitude": "+51.59154916",
+                    "substation-longitude": "+000.4934835",
+                    "busbar-low-volt-1-threshold": "1",
+                    "busbar-low-volt-1-reset-threshold": "2",
+                    "busbar-low-volt-1-time-threshold": "255",
+                    "busbar-low-volt-1-time-reset-threshold": "255",
+                    "busbar-low-volt-2-threshold": "1",
+                    "busbar-low-volt-2-reset-threshold": "2",
+                    "busbar-low-volt-2-time-threshold": "255",
+                    "busbar-low-volt-2-time-reset-threshold": "255",
+                    "busbar-high-volt-1-threshold": "510",
+                    "busbar-high-volt-1-reset-threshold": "490",
+                    "busbar-high-volt-1-time-threshold": "255",
+                    "busbar-high-volt-1-time-reset-threshold": "255",
+                    "busbar-high-volt-2-threshold": "100",
+                    "busbar-high-volt-2-reset-threshold": "480",
+                    "busbar-high-volt-2-time-threshold": "255",
+                    "busbar-high-volt-2-time-reset-threshold": "255",
+                    "busbar-low-current-threshold": "1",
+                    "busbar-low-current-reset-threshold": "2",
+                    "busbar-low-current-time-threshold": "255",
+                    "busbar-low-current-time-reset-threshold": "255",
+                    "busbar-high-current-1-threshold": "4050",
+                    "busbar-high-current-1-reset-threshold": "4000",
+                    "busbar-high-current-1-time-threshold": "255",
+                    "busbar-high-current-1-time-reset-threshold": "255",
+                    "busbar-high-current-2-threshold": "4030",
+                    "busbar-high-current-2-reset-threshold": "4000",
+                    "busbar-high-current-2-time-threshold": "255",
+                    "busbar-high-current-2-time-reset-threshold": "255",
+                    "busbar-neg-current-threshold": "-4050",
+                    "busbar-neg-current-reset-threshold": "-4000",
+                    "busbar-neg-current-time-threshold": "255",
+                    "busbar-neg-current-time-reset-threshold": "255",
+                    "unused0": "0",
+                    "feeder-1-low-current-threshold": "8",
+                    "feeder-1-low-current-reset-threshold": "1",
+                    "feeder-1-low-current-time-threshold": "255",
+                    "feeder-1-low-current-time-reset-threshold": "255",
+                    "feeder-1-high-current-1-threshold": "4050",
+                    "feeder-1-high-current-1-reset-threshold": "4000",
+                    "feeder-1-high-current-1-time-threshold": "255",
+                    "feeder-1-high-current-1-time-reset-threshold": "255",
+                    "feeder-1-high-current-2-threshold": "4030",
+                    "feeder-1-high-current-2-reset-threshold": "4000",
+                    "feeder-1-high-current-2-time-threshold": "255",
+                    "feeder-1-high-current-2-time-reset-threshold": "255",
+                    "feeder-1-neg-current-threshold": "-4050",
+                    "feeder-1-neg-current-reset-threshold": "-4000",
+                    "feeder-1-neg-current-time-threshold": "255",
+                    "feeder-1-neg-current-time-reset-threshold": "255",
+                    "feeder-1-neut-mismatch-threshold": "4095.875",
+                    "feeder-1-neut-mismatch-reset-threshold": "4095",
+                    "feeder-1-neut-mismatch-time-threshold": "255",
+                    "feeder-1-neut-mismatch-time-reset-threshold": "255",
+                    "feeder-2-low-current-threshold": "8",
+                    "feeder-2-low-current-reset-threshold": "1",
+                    "feeder-2-low-current-time-threshold": "255",
+                    "feeder-2-low-current-time-reset-threshold": "255",
+                    "feeder-2-high-current-1-threshold": "4050",
+                    "feeder-2-high-current-1-reset-threshold": "4000",
+                    "feeder-2-high-current-1-time-threshold": "255",
+                    "feeder-2-high-current-1-time-reset-threshold": "255",
+                    "feeder-2-high-current-2-threshold": "4030",
+                    "feeder-2-high-current-2-reset-threshold": "4000",
+                    "feeder-2-high-current-2-time-threshold": "255",
+                    "feeder-2-high-current-2-time-reset-threshold": "255",
+                    "feeder-2-neg-current-threshold": "-4050",
+                    "feeder-2-neg-current-reset-threshold": "-4000",
+                    "feeder-2-neg-current-time-threshold": "255",
+                    "feeder-2-neg-current-time-reset-threshold": "255",
+                    "feeder-2-neut-mismatch-threshold": "4095.875",
+                    "feeder-2-neut-mismatch-reset-threshold": "4095",
+                    "feeder-2-neut-mismatch-time-threshold": "255",
+                    "feeder-2-neut-mismatch-time-reset-threshold": "255",
+                    "feeder-3-low-current-threshold": "8",
+                    "feeder-3-low-current-reset-threshold": "1",
+                    "feeder-3-low-current-time-threshold": "255",
+                    "feeder-3-low-current-time-reset-threshold": "255",
+                    "feeder-3-high-current-1-threshold": "4050",
+                    "feeder-3-high-current-1-reset-threshold": "4000",
+                    "feeder-3-high-current-1-time-threshold": "255",
+                    "feeder-3-high-current-1-time-reset-threshold": "255",
+                    "feeder-3-high-current-2-threshold": "4030",
+                    "feeder-3-high-current-2-reset-threshold": "4000",
+                    "feeder-3-high-current-2-time-threshold": "255",
+                    "feeder-3-high-current-2-time-reset-threshold": "255",
+                    "feeder-3-neg-current-threshold": "-4050",
+                    "feeder-3-neg-current-reset-threshold": "-4000",
+                    "feeder-3-neg-current-time-threshold": "255",
+                    "feeder-3-neg-current-time-reset-threshold": "255",
+                    "feeder-3-neut-mismatch-threshold": "4095.875",
+                    "feeder-3-neut-mismatch-reset-threshold": "4095",
+                    "feeder-3-neut-mismatch-time-threshold": "255",
+                    "feeder-3-neut-mismatch-time-reset-threshold": "255",
+                    "feeder-4-low-current-threshold": "8",
+                    "feeder-4-low-current-reset-threshold": "1",
+                    "feeder-4-low-current-time-threshold": "255",
+                    "feeder-4-low-current-time-reset-threshold": "255",
+                    "feeder-4-high-current-1-threshold": "4050",
+                    "feeder-4-high-current-1-reset-threshold": "4000",
+                    "feeder-4-high-current-1-time-threshold": "255",
+                    "feeder-4-high-current-1-time-reset-threshold": "255",
+                    "feeder-4-high-current-2-threshold": "4030",
+                    "feeder-4-high-current-2-reset-threshold": "4000",
+                    "feeder-4-high-current-2-time-threshold": "255",
+                    "feeder-4-high-current-2-time-reset-threshold": "255",
+                    "feeder-4-neg-current-threshold": "-4050",
+                    "feeder-4-neg-current-reset-threshold": "-4000",
+                    "feeder-4-neg-current-time-threshold": "255",
+                    "feeder-4-neg-current-time-reset-threshold": "255",
+                    "feeder-4-neut-mismatch-threshold": "4095.875",
+                    "feeder-4-neut-mismatch-reset-threshold": "4095",
+                    "feeder-4-neut-mismatch-time-threshold": "255",
+                    "feeder-4-neut-mismatch-time-reset-threshold": "255",
+                    "feeder-5-low-current-threshold": "8",
+                    "feeder-5-low-current-reset-threshold": "1",
+                    "feeder-5-low-current-time-threshold": "255",
+                    "feeder-5-low-current-time-reset-threshold": "255",
+                    "feeder-5-high-current-1-threshold": "4050",
+                    "feeder-5-high-current-1-reset-threshold": "4000",
+                    "feeder-5-high-current-1-time-threshold": "255",
+                    "feeder-5-high-current-1-time-reset-threshold": "255",
+                    "feeder-5-high-current-2-threshold": "4030",
+                    "feeder-5-high-current-2-reset-threshold": "4000",
+                    "feeder-5-high-current-2-time-threshold": "255",
+                    "feeder-5-high-current-2-time-reset-threshold": "255",
+                    "feeder-5-neg-current-threshold": "-4050",
+                    "feeder-5-neg-current-reset-threshold": "-4000",
+                    "feeder-5-neg-current-time-threshold": "255",
+                    "feeder-5-neg-current-time-reset-threshold": "255",
+                    "feeder-5-neut-mismatch-threshold": "4095.875",
+                    "feeder-5-neut-mismatch-reset-threshold": "4095",
+                    "feeder-5-neut-mismatch-time-threshold": "255",
+                    "feeder-5-neut-mismatch-time-reset-threshold": "255",
+                    "substation-high-current-1-threshold": "4050",
+                    "substation-high-current-1-reset-threshold": "4000",
+                    "substation-high-current-1-time-threshold": "255",
+                    "substation-high-current-1-time-reset-threshold": "255",
+                    "substation-high-current-2-threshold": "4030",
+                    "substation-high-current-2-reset-threshold": "4000",
+                    "substation-high-current-2-time-threshold": "255",
+                    "substation-high-current-2-time-reset-threshold": "255",
+                    "substation-identity": "spmainsite",
+                    "substation-description": "mcuinc-building",
+                    "feeder-1-reference": "1",
+                    "unused1": "0",
+                    "feeder-1-identity": "addidentity/description",
+                    "feeder-2-reference": "2",
+                    "unused2": "0",
+                    "feeder-2-identity": "addidentity/description",
+                    "feeder-3-reference": "3",
+                    "unused3": "0",
+                    "feeder-3-identity": "addidentity/description",
+                    "feeder-4-reference": "4",
+                    "unused4": "0",
+                    "feeder-4-identity": "addidentity/description",
+                    "feeder-5-reference": "5",
+                    "unused5": "0",
+                    "feeder-5-identity": "addidentity/description",
+                    "unit-fixed-ip-address": "127.0.0.1",
+                    "unit-subnet-mask": "255.255.255.0",
+                    "unit-fixed-ip-gateway": "127.0.0.1",
+                    "installation-note": "n/a"
+                  }
+                }
+      /raw:
+        get:
+          description: Returns the latest raw file of the given message type/message ID. Which file is returned depends on the message type supplied i.e. 'user' or 'fact' or 'statstical'. In addition to the raw 'data' section, the 'dno', 'mcu' and message 'type' are returned in separate fields
+          responses:
+            200:
+              body:
+                example: |
+                  {
+                    "dno": "LUCYDEMO",
+                    "mcu": "000303230156",
+                    "type": "user",
+                    "datetime": "140905135922",
+                    "data": "E1D2C3B4800501005A027C02247A012441503530303530393635303030303034454E57504F574552303030333033323330313536020C313431303036313335363032050C010001000000000100000000062E535331342033454C2020544B313233343539383736352B35312E35393135343931362B3030302E34393334383335093040008000FFFF40008000FFFF807F807AFFFF007D0078FFFF08001000FFFF907E007DFFFFF07D007DFFFF70810083FFFF0A20010040000800FFFF907E007DFFFFF07D007DFFFF70810083FFFFFF7FF87FFFFF0A20020040000800FFFF907E007DFFFFF07D007DFFFF70810083FFFFFF7FF87FFFFF0A20030040000800FFFF907E007DFFFFF07D007DFFFF70810083FFFFFF7FF87FFFFF0A20040040000800FFFF907E007DFFFFF07D007DFFFF70810083FFFFFF7FF87FFFFF0A20050040000800FFFF907E007DFFFFF07D007DFFFF70810083FFFFFF7FF87FFFFF0B0C907E007DFFFFF07D007DFFFF0C24303030333033323330313536416464204465736372697074696F6E2020202020202020200D220100416464204964656E746974792F4465736372697074696F6E20202020202020200D220200416464204964656E746974792F4465736372697074696F6E20202020202020200D220300416464204964656E746974792F4465736372697074696F6E20202020202020200D220400416464204964656E746974792F4465736372697074696F6E20202020202020200D220500416464204964656E746974792F4465736372697074696F6E202020202020202000000000000000000000000000000000000000000000"
+                  }  
+
+    /{mcu}/decoded/{start}/{end}/{params}:
+      get:
+        description:  Returns all of the specified decoded message parameters between the start and end time specified. Format of start and end times are as follows - YYMMDDhhmmss 
+        responses:
+          200:
+            body:              
+                example: |
+                  {
+                    "dno": "LUCYDEMO",
+                    "mcu": "000123456789",
+                    "timeStart": "20140908102900",
+                    "timeEnd": "20140908103000",
+                    "data": [
+                      {
+                        "datetime": "140905000000",
+                        "Busbar L1 Mean Voltage": "239.8",                       
+                        "Busbar L2 Mean Voltage": "239.8"
+                      },
+                      {
+                        "datetime": "140906000000",
+                        "Busbar L1 Mean Voltage": "239.8",                       
+                        "Busbar L2 Mean Voltage": "239.8"
+                      }
+                    ]
+                  } 
+
+    /{mcu}/raw/{date}/{type}:
+      get:
+        description: Returns the specified raw message. Which message is returned depends on the type supplied i.e. 'statistical', 'instantaneous', 'user', 'alert' etc. In addition to the raw 'data' section, the 'dno', 'mcu' and message 'type' are returned in separate fields. To get the most recent config message in its raw form, use the alternative API call for config messages i.e. '/{mcu}/config/{config-type}/now/raw'
+        responses:
+          200:
+            body:
+              example: |
+                {
+                  "dno": "LUCYDEMO",
+                  "mcu": "000303230156",
+                  "type": "statistical",
+                  "datetime": "140905000000",
+                  "data":[  
+                    {
+                      "E1D2C3B48001000084017C024B54012441503530303530393635303030303034454E57504F574552303030333033323330303035020C313331303130303030303030FF02F79F090801003C0000341A000812000000000000000001000100FA00FA00FA00045E0000730676067106F4FFF6FFCEFFEEFFFFFF24000000FFFFFFFF01000000CC3DDD3DB83D040004000400870000002D0000000400000000000000CD3DE33DB33D14001600120051020000AFFEFFFF0A000000FAFFFFFF19002D0007000000065E0100F3FFF8FFCBFF9204F1FFFFFF27000000FFFFFFFF010000000000000003001D000000B014870000002F0000000300000000000000000000001800220015002C1353020000B2FEFFFF0A000000FAFFFFFF000066110B001F0006000000065E0200FEFF0000EFFF0C0900000000000000000000000000000000000000000A00340000001C030B000000FAFFFFFF000000000000000000000000FFFF0000F0FF2215000000000000000000000000000000000000000004001A0000000000",
+                      "E1D2C3B48001000084017C024220012441503530303530393635303030303034454E57504F574552303030333033323330303035020C313331303130303234373030FF029EA0090801003C0000341A000812000000000000000001000100EB00EB00EB00045E00006E0673066D06F4FFF4FFF4FFF1FFFFFF26000000FFFFFFFF00000000863D993D773D040004000400840000002E0000000300000001000000893D9C3D7B3D150016001400AE020000E10000000B000000040000001500580000000000065E0100F3FFF6FFE9FF4408F3FFFFFF29000000FFFFFFFF000000000000000004001C0000001E15840000002F00000002000000010000000000000017001C001600DE02B0020000E60000000B00000004000000000000000600150000000000065E0200FEFF0000EFFF0C0900000000000000000000000000000000000000000A00340000001C030B000000FAFFFFFF000000000000000000000000FFFF0000F0FF2215000000000000000000000000000000000000000004001A0000000000"
+                    }
+                  ]
+                }
+    
+    /{mcu}/event/{start}/{end}/{type}:
+      get:
+        description: Returns all of the specified events between the start and end time specified, for a given event type. To add further granulaity, use the alternative call where parameters are specified. Type is typically something like "analytic" or "alert" etc 
+        responses:
+          200:
+            body:
+              example: |
+                {
+                  "dno": "LUCYDEMO",
+                  "mcu": "000123456789",
+                  "timeStart": "20140908102900",
+                  "timeEnd": "20140908103000",
+                  "data": [
+                    {
+                      "datetime": "140905000000",
+                      "Busbar L1 Mean Voltage": "239.8",                       
+                      "Busbar L2 Mean Voltage": "239.8"
+                    },
+                    {
+                      "datetime": "140906000000",
+                      "Busbar L1 Mean Voltage": "239.8",                       
+                      "Busbar L2 Mean Voltage": "239.8"
+                    }
+                  ]
+                }
+                
+      /{params}:
+        get:
+          description: Returns all of the specified events between the start and end time specified, for the given type and parameters specified. For example, an analytic type, with parameter feeder-l-l1-blow-fuse-event etc. Parameters can be comma separated to retrieve multiple items in one call 
+          responses:
+            200:
+              body:
+                example: |
+                  {
+                    "dno": "LUCYDEMO",
+                    "mcu": "000123456789",
+                    "timeStart": "20140908102900",
+                    "timeEnd": "20140908103000",
+                    "data": [
+                      {
+                        "datetime": "140905000000",
+                        "Busbar L1 Mean Voltage": "239.8",                       
+                        "Busbar L2 Mean Voltage": "239.8"
+                      },
+                      {
+                        "datetime": "140906000000",
+                        "Busbar L1 Mean Voltage": "239.8",                       
+                        "Busbar L2 Mean Voltage": "239.8"
+                      }
+                    ]
+                  }                
+                
+    /{mcu}/analytics/{start}/{end}/{type}:
+      get:
+        description: Returns the specified analytics data.
+        responses:
+          200:
+            body:
+              example: |
+                {
+                  "dno": "LUCYDEMO",
+                  "mcu": "000303230156",
+                  "type": "Busbar L1 Voltage Mean",
+                  "data":[  
+                    {
+                    "datetime": "140905000000",
+                     "time": "0,60,120,180,240,300,360,420,480,540,600,660,720,780,840,900,960,1020,1080,1140,1200,1260,1320,1380,1440,1500,1560,1620,1680,1740,1800,1860,1920,1980,2040,2100,2160,2220,2280,2340,2400,2460,2520,2580,2640,2700,2760,2820,2880,2940,3000,3060,3120,3180,3240,3300,3360,3420,3480,3540,3600,3660,3720,3780,3840,3900,3960,4020,4080,4140,4200,4260,4320,4380,4440,4500,4560,4620,4680,4740,4800,4860,4920,4980,5040,5100,5160,5220,5280,5340,5400,5460,5520,5580,5640,5700,5760,5820,5880,5940,6000,6060,6120,6180,6240,6300,6360,6420,6480,6540,6600,6660,6720,6780,6840,6900,6960,7020,7080,7140,7200,7260,7320,7380,7440,7500,7560,7620,7680,7740,7800,7860,7920,7980,8040,8100,8160,8220,8280,8340,8400,8460,8520,8580,8640,8700,8760,8820,8880,8940,9000,9060,9120,9180,9240,9300,9360,9420,9480,9540,9600,9660,9720,9780,9840,9900,9960,10020,10080,10140,10200,10260,10320,10380,10440,10500,10560,10620,10680,10740,10800,10860,10920,10980,11040,11100,11160,11220,11280,11340,11400,11460,11520,11580,11640,11700,11760,11820,11880,11940,12000,12060,12120,12180,12240,12300,12360,12420,12480,12540,12600,12660,12720,12780,12840,12900,12960,13020,13080,13140,13200,13260,13320,13380,13440,13500,13560,13620,13680,13740,13800,13860,13920,13980,14040,14100,14160,14220,14280,14340,14400,14460,14520,14580,14640,14700,14760,14820,14880,14940,15000,15060,15120,15180,15240,15300,15360,15420,15480,15540,15600,15660,15720,15780,15840,15900,15960,16020,16080,16140,16200,16260,16320,16380,16440,16500,16560,16620,16680,16740,16800,16860,16920,16980,17040,17100,17160,17220,17280,17340,17400,17460,17520,17580,17640,17700,17760,17820,17880,17940,18000,18060,18120,18180,18240,18300,18360,18420,18480,18540,18600,18660,18720,18780,18840,18900,18960,19020,19080,19140,19200,19260,19320,19380,19440,19500,19560,19620,19680,19740,19800,19860,19920,19980,20040,20100,20160,20220,20280,20340,20400,20460,20520,20580,20640,20700,20760,20820,20880,20940,21000,21060,21120,21180,21240,21300,21360,21420,21480,21540,21600,21660,21720,21780,21840,21900,21960,22020,22080,22140,22200,22260,22320,22380,22440,22500,22560,22620,22680,22740,22800,22860,22920,22980,23040,23100,23160,23220,23280,23340,23400,23460,23520,23580,23640,23700,23760,23820,23880,23940,24000,24060,24120,24180,24240,24300,24360,24420,24480,24540,24600,24660,24720,24780,24840,24900,24960,25020,25080,25140,25200,25260,25320,25380,25440,25500,25560,25620,25680,25740,25800,25860,25920,25980,26040,26100,26160,26220,26280,26340,26400,26460,26520,26580,26640,26700,26760,26820,26880,26940,27000,27060,27120,27180,27240,27300,27360,27420,27480,27540,27600,27660,27720,27780,27840,27900,27960,28020,28080,28140,28200,28260,28320,28380,28440,28500,28560,28620,28680,28740,28800,28860,28920,28980,29040,29100,29160,29220,29280,29340,29400,29460,29520,29580,29640,29700,29760,29820,29880,29940,30000,30060,30120,30180,30240,30300,30360,30420,30480,30540,30600,30660,30720,30780,30840,30900,30960,31020,31080,31140,31200,31260,31320,31380,31440,31500,31560,31620,31680,31740,31800,31860,31920,31980,32040,32100,32160,32220,32280,32340,32400,32460,32520,32580,32640,32700,32760,32820,32880,32940,33000,33060,33120,33180,33240,33300,33360,33420,33480,33540,33600,33660,33720,33780,33840,33900,33960,34020,34080,34140,34200,34260,34320,34380,34440,34500,34560,34620,34680,34740,34800,34860,34920,34980,35040,35100,35160,35220,35280,35340,35400,35460,35520,35580,35640,35700,35760,35820,35880,35940,36000,36060,36120,36180,36240,36300,36360,36420,36480,36540,36600,36660,36720,36780,36840,36900,36960,37020,37080,37140,37200,37260,37320,37380,37440,37500,37560,37620,37680,37740,37800,37860,37920,37980,38040,38100,38160,38220,38280,38340,38400,38460,38520,38580,38640,38700,38760,38820,38880,38940,39000,39060,39120,39180,39240,39300,39360,39420,39480,39540,39600,39660,39720,39780,39840,39900,39960,40020,40080,40140,40200,40260,40320,40380,40440,40500,40560,40620,40680,40740,40800,40860,40920,40980,41040,41100,41160,41220,41280,41340,41400,41460,41520,41580,41640,41700,41760,41820,41880,41940,42000,42060,42120,42180,42240,42300,42360,42420,42480,42540,42600,42660,42720,42780,42840,42900,42960,43020,43080,43140,43200,43260,43320,43380,43440,43500,43560,43620,43680,43740,43800,43860,43920,43980,44040,44100,44160,44220,44280,44340,44400,44460,44520,44580,44640,44700,44760,44820,44880,44940,45000,45060,45120,45180,45240,45300,45360,45420,45480,45540,45600,45660,45720,45780,45840,45900,45960,46020,46080,46140,46200,46260,46320,46380,46440,46500,46560,46620,46680,46740,46800,46860,46920,46980,47040,47100,47160,47220,47280,47340,47400,47460,47520,47580,47640,47700,47760,47820,47880,47940,48000,48060,48120,48180,48240,48300,48360,48420,48480,48540,48600,48660,48720,48780,48840,48900,48960,49020,49080,49140,49200,49260,49320,49380,49440,49500,49560,49620,49680,49740,49800,49860,49920,49980,50040,50100,50160,50220,50280,50340,50400,50460,50520,50580,50640,50700,50760,50820,50880,50940,51000,51060,51120,51180,51240,51300,51360,51420,51480,51540,51600,51660,51720,51780,51840,51900,51960,52020,52080,52140,52200,52260,52320,52380,52440,52500,52560,52620,52680,52740,52800,52860,52920,52980,53040,53100,53160,53220,53280,53340,53400,53460,53520,53580,53640,53700,53760,53820,53880,53940,54000,54060,54120,54180,54240,54300,54360,54420,54480,54540,54600,54660,54720,54780,54840,54900,54960,55020,55080,55140,55200,55260,55320,55380,55440,55500,55560,55620,55680,55740,55800,55860,55920,55980,56040,56100,56160,56220,56280,56340,56400,56460,56520,56580,56640,56700,56760,56820,56880,56940,57000,57060,57120,57180,57240,57300,57360,57420,57480,57540,57600,57660,57720,57780,57840,57900,57960,58020,58080,58140,58200,58260,58320,58380,58440,58500,58560,58620,58680,58740,58800,58860,58920,58980,59040,59100,59160,59220,59280,59340,59400,59460,59520,59580,59640,59700,59760,59820,59880,59940,60000,60060,60120,60180,60240,60300,60360,60420,60480,60540,60600,60660,60720,60780,60840,60900,60960,61020,61080,61140,61200,61260,61320,61380,61440,61500,61560,61620,61680,61740,61800,61860,61920,61980,62040,62100,62160,62220,62280,62340,62400,62460,62520,62580,62640,62700,62760,62820,62880,62940,63000,63060,63120,63180,63240,63300,63360,63420,63480,63540,63600,63660,63720,63780,63840,63900,63960,64020,64080,64140,64200,64260,64320,64380,64440,64500,64560,64620,64680,64740,64800,64860,64920,64980,65040,65100,65160,65220,65280,65340,65400,65460,65520,65580,65640,65700,65760,65820,65880,65940,66000,66060,66120,66180,66240,66300,66360,66420,66480,66540,66600,66660,66720,66780,66840,66900,66960,67020,67080,67140,67200,67260,67320,67380,67440,67500,67560,67620,67680,67740,67800,67860,67920,67980,68040,68100,68160,68220,68280,68340,68400,68460,68520,68580,68640,68700,68760,68820,68880,68940,69000,69060,69120,69180,69240,69300,69360,69420,69480,69540,69600,69660,69720,69780,69840,69900,69960,70020,70080,70140,70200,70260,70320,70380,70440,70500,70560,70620,70680,70740,70800,70860,70920,70980,71040,71100,71160,71220,71280,71340,71400,71460,71520,71580,71640,71700,71760,71820,71880,71940,72000,72060,72120,72180,72240,72300,72360,72420,72480,72540,72600,72660,72720,72780,72840,72900,72960,73020,73080,73140,73200,73260,73320,73380,73440,73500,73560,73620,73680,73740,73800,73860,73920,73980,74040,74100,74160,74220,74280,74340,74400,74460,74520,74580,74640,74700,74760,74820,74880,74940,75000,75060,75120,75180,75240,75300,75360,75420,75480,75540,75600,75660,75720,75780,75840,75900,75960,76020,76080,76140,76200,76260,76320,76380,76440,76500,76560,76620,76680,76740,76800,76860,76920,76980,77040,77100,77160,77220,77280,77340,77400,77460,77520,77580,77640,77700,77760,77820,77880,77940,78000,78060,78120,78180,78240,78300,78360,78420,78480,78540,78600,78660,78720,78780,78840,78900,78960,79020,79080,79140,79200,79260,79320,79380,79440,79500,79560,79620,79680,79740,79800,79860,79920,79980,80040,80100,80160,80220,80280,80340,80400,80460,80520,80580,80640,80700,80760,80820,80880,80940,81000,81060,81120,81180,81240,81300,81360,81420,81480,81540,81600,81660,81720,81780,81840,81900,81960,82020,82080,82140,82200,82260,82320,82380,82440,82500,82560,82620,82680,82740,82800,82860,82920,82980,83040,83100,83160,83220,83280,83340,83400,83460,83520,83580,83640,83700,83760,83820,83880,83940,84000,84060,84120,84180,84240,84300,84360,84420,84480,84540,84600,84660,84720,84780,84840,84900,84960,85020,85080,85140,85200,85260,85320,85380,85440,85500,85560,85620,85680,85740,85800,85860,85920,85980,86040,86100,86160,86220,86280,86340,86400",
+                     "data": "0.0,1.0,0.0,1.0,0.0,0,1.0,0.0,0,1.0,1,1.0,0.0,0,1.0,1,1.0,0.0,0,1.0,1,0.0,1.0,0.0,0,1.0,0.0,0,0.0,0,0.0,0,1.0,1,0.0,0,1.0,1,1.0,0.0,0,0.0,1.0,1,1.0,0.0,1.0,1,1.0,1,1.0,0.0,0,0.0,1.0,0.0,0,0.0,0,0.0,0,1.0,0.0,0,1.0,1,1.0,1,0.0,1.0,1,1.0,0.0,0,1.0,1,1.0,1,1.0,1,0.0,0,1.0,0.0,1.0,1,0.0,1.0,1,0.0,0,1.0,0.0,1.0,1,0.0,0,0.0,0,0.0,1.0,1,0.0,1.0,0.0,1.0,1,0.0,1.0,0.0,1.0,0.0,0,1.0,1,1.0,1,0.0,1.0,1,1.0,1,0.0,0,0.0,1.0,0.0,0,0.0,1.0,0.0,1.0,0.0,0,1.0,1,0.0,0,0.0,1.0,0.0,0,0.0,0,0.0,0,1.0,1,1.0,0.0,0,1.0,1,1.0,0.0,1.0,1,0.0,1.0,0.0,1.0,0.0,1.0,1,1.0,1,0.0,0,1.0,0.0,0,0.0,1.0,1,1.0,0.0,0,0.0,1.0,1,1.0,1,1.0,0.0,0,0.0,0,0.0,1.0,0.0,0,0.0,0,0.0,0,0.0,1.0,0.0,1.0,1,1.0,0.0,1.0,0.0,0,1.0,0.0,1.0,1,1.0,0.0,1.0,1,0.0,1.0,0.0,1.0,1,0.0,1.0,0.0,0,0.0,1.0,0.0,1.0,1,0.0,0,0.0,1.0,1,1.0,0.0,1.0,1,1.0,0.0,1.0,1,1.0,0.0,1.0,1,0.0,1.0,1,1.0,0.0,0,0.0,0,1.0,0.0,1.0,0.0,0,1.0,0.0,1.0,0.0,1.0,1,0.0,1.0,0.0,1.0,0.0,0,1.0,1,0.0,1.0,1,0.0,0,0.0,0,1.0,0.0,1.0,1,0.0,1.0,0.0,1.0,0.0,1.0,0.0,0,0.0,1.0,1,1.0,1,0.0,0,0.0,1.0,0.0,0,0.0,0,0.0,1.0,0.0,0,1.0,1,0.0,0,1.0,0.0,0,0.0,0,0.0,0,0.0,0,1.0,1,0.0,1.0,0.0,1.0,0.0,1.0,1,1.0,0.0,0,0.0,0,0.0,0,1.0,0.0,0,1.0,0.0,1.0,0.0,1.0,1,1.0,1,0.0,1.0,1,1.0,1,1.0,1,1.0,1,1.0,1,1.0,1,0.0,0,0.0,0,0.0,0,1.0,0.0,1.0,0.0,0,0.0,1.0,0.0,1.0,1,1.0,0.0,1.0,1,0.0,1.0,0.0,1.0,1,0.0,1.0,1,0.0,0,1.0,1,1.0,1,0.0,1.0,1,0.0,1.0,0.0,1.0,1,1.0,1,0.0,0,0.0,1.0,0.0,0,1.0,1,1.0,1,0.0,0,1.0,0.0,0,1.0,1,0.0,1.0,0.0,1.0,0.0,1.0,1,0.0,1.0,0.0,1.0,0.0,1.0,0.0,1.0,1,0.0,1.0,0.0,1.0,1,1.0,0.0,0,1.0,1,0.0,0,0.0,0,1.0,0.0,1.0,1,1.0,1,0.0,1.0,0.0,0,1.0,0.0,1.0,0.0,1.0,1,1.0,0.0,0,1.0,1,1.0,0.0,0,1.0,0.0,1.0,1,1.0,1,1.0,1,1.0,1,1.0,1,1.0,0.0,1.0,1,0.0,0,0.0,1.0,1,0.0,1.0,0.0,0,0.0,1.0,1,1.0,1,0.0,0,0.0,1.0,1,0.0,1.0,1,1.0,0.0,0,0.0,1.0,1,0.0,0,1.0,0.0,1.0,1,1.0,1,1.0,0.0,0,1.0,1,0.0,0,1.0,1,1.0,1,0.0,1.0,0.0,1.0,1,0.0,0,0.0,1.0,0.0,0,0.0,1.0,1,0.0,0,0.0,1.0,1,0.0,0,1.0,0.0,0,1.0,0.0,1.0,1,0.0,0,1.0,1,0.0,0,1.0,0.0,1.0,1,0.0,1.0,1,1.0,1,0.0,1.0,0.0,1.0,1,0.0,0,1.0,1,1.0,1,1.0,1,0.0,0,0.0,0,0.0,1.0,1,1.0,1,1.0,0.0,1.0,1,1.0,1,0.0,0,1.0,1,0.0,1.0,0.0,0,1.0,1,1.0,1,1.0,1,1.0,0.0,0,0.0,0,1.0,1,1.0,0.0,1.0,1,0.0,1.0,1,1.0,1,0.0,0,0.0,0,0.0,0,0.0,1.0,0.0,0,0.0,1.0,0.0,1.0,1,0.0,1.0,0.0,0,0.0,0,0.0,0,1.0,0.0,1.0,1,0.0,1.0,0.0,1.0,1,1.0,0.0,1.0,1,0.0,1.0,1,1.0,1,1.0,0.0,1.0,1,0.0,0,1.0,1,1.0,0.0,0,1.0,0.0,1.0,0.0,1.0,0.0,0,0.0,0,1.0,0.0,0,0.0,0,0.0,0,0.0,0,1.0,1,0.0,1.0,1,0.0,0,1.0,0.0,1.0,1,1.0,1,0.0,1.0,0.0,0,1.0,0.0,1.0,0.0,0,1.0,1,0.0,1.0,1,1.0,0.0,1.0,1,0.0,1.0,1,0.0,1.0,1,1.0,0.0,1.0,1,1.0,0.0,0,0.0,0,0.0,1.0,0.0,1.0,0.0,1.0,0.0,0,0.0,1.0,0.0,1.0,1,1.0,1,0.0,0,0.0,1.0,1,1.0,1,0.0,0,1.0,0.0,0,0.0,0,0.0,1.0,1,1.0,0.0,0,1.0,1,1.0,0.0,1.0,1,0.0,0,1.0,0.0,1.0,1,0.0,0,0.0,0,1.0,1,1.0,1,1.0,1,0.0,0,1.0,1,0.0,0,0.0,1.0,0.0,0,1.0,0.0,0,0.0,1.0,0.0,1.0,0.0,1.0,1,0.0,1.0,1,1.0,0.0,0,1.0,0.0,1.0,1,1.0,1,0.0,1.0,0.0,0,0.0,0,0.0,0,1.0,1,1.0,0.0,1.0,1,1.0,1,1.0,1,1.0,1,0.0,1.0,1,0.0,0,1.0,0.0,1.0,0.0,1.0,0.0,0,0.0,0,0.0,1.0,1,0.0,1.0,0.0,1.0,0.0,1.0,0.0,0,0.0,1.0,0.0,0,1.0,0.0,0,0.0,1.0,1,0.0,1.0,0.0,0,0.0,1.0,0.0,0,1.0,1,0.0,0,1.0,1,1.0,0.0,1.0,0.0,0,0.0,0,1.0,1,0.0,0,0.0,1.0,1,0.0,1.0,1,1.0,0.0,1.0,1,0.0,0,1.0,0.0,1.0,1,1.0,0.0,1.0,1,0.0,1.0,0.0,0,0.0,1.0,1,1.0,0.0,1.0,1,0.0,0,0.0,1.0,1,0.0,1.0,0.0,1.0,1,1.0,0.0,1.0,1,0.0,0,1.0,1,0.0,0,0.0,0,0.0,1.0,0.0,0,0.0,1.0,0.0,1.0,0.0,0,1.0,0.0,0,1.0,0.0,0,0.0,0,1.0,1,0.0,0,1.0,0.0,0,1.0,0.0,1.0,0.0,0,1.0,1,0.0,1.0,0.0,1.0,0.0,1.0,1,0.0,0,1.0,0.0,0,0.0,1.0,0.0,1.0,1,1.0,0.0,1.0,1,1.0,1,0.0,0,0.0,1.0,0.0,0,0.0,0,1.0,1,1.0,0.0,1.0,1,0.0,1.0,0.0,0,0.0,0,1.0,0.0,0,0.0,0,1.0,1,1.0,0.0,1.0,0.0,0,0.0,0,1.0,1,1.0,1,0.0,1.0,1,0.0,0,0.0,1.0,0.0,0,1.0,1,1.0,1,1.0,0.0,0,1.0,1,0.0,0,0.0,0,0.0,0,1.0,0.0,1.0,0.0,1.0,0.0,1.0,1,1.0,0.0,1.0,1,1.0,1,0.0,1.0,0.0,0,0.0,0,1.0,0.0,0,1.0,1,1.0,0.0,1.0,1,1.0,0.0,1.0,0.0,1.0,1,1.0,0.0,0,1.0,1,0.0,1.0,0.0,0,0.0,1.0,1,0.0,1.0,1,1.0,0.0,0,1.0,1,1.0,0.0,1.0,1,1.0,1,1.0,0.0,0,1.0,1,0.0,1.0,1,0.0,0,0.0,1.0,0.0,0,0.0,1.0,0.0,1.0,0.0,0,1.0,0.0,1.0,1,0.0,1.0,1,1.0,0.0,0,1.0,1,0.0,1.0,1,1.0,1,1.0,1,1.0,0.0,1.0,1,1.0,0.0,0,0.0,1.0,0.0,1.0,0.0,1.0,1,0.0,0,0.0,1.0,0.0,1.0,1,1.0,1,0.0,0,1.0,0.0,1.0,1,1.0,1,0.0,0,1.0,1,1.0,0.0,1.0,0.0,0,1.0,1,1.0,0.0,1.0,1,1.0,0.0,1.0,1,1.0,1,0.0,1.0,0.0,1.0,1,0.0,0,1.0,0.0,0,1.0,0.0,0,0.0,0,1.0,1,0.0,1.0,0.0,1.0,1,0.0,0,1.0,1,1.0,0.0,1.0,1,0.0,0,1.0,1,1.0,1,0.0,0,1.0,1,0.0,0,1.0,1,1.0,1,0.0,1.0,1,1.0,1,0.0,0,1.0,0.0,0,0.0,0,1.0,1,0.0,1.0,1,1.0,1,1.0,0.0,1.0,0.0,1.0,0.0,0,1.0,0.0,0,0.0,0,0.0,1.0,0.0,1.0,1,0.0,0,1.0,0.0,0,0.0,0,1.0,0.0,1.0,1,0.0,1.0,0.0,0,1.0,0.0,0,1.0,0.0,0,1.0,1,1.0,0.0,1.0,1,0.0,1.0,1,0.0,0,0.0,1.0,1,0.0,1.0,1,0.0,1.0,0.0,1.0,1,1.0,0.0,1.0,0.0,0,1.0,1,0.0,1.0,0.0,1.0,1,0.0,1.0,1,0.0,1.0,0.0,1.0,0.0,0,0.0,1.0,1,0.0,0,0.0,1.0,0.0,0,0.0,0,1.0,1,1.0,0.0,0,0.0,1.0,0.0,1.0,1,1.0,0.0,1.0,0.0,1.0,1,1.0,0.0,0,1.0,0.0,0,1.0,1,1.0,0.0,0,1.0,1,1.0,1,0.0,1.0,0.0,0,0.0,0,1"
+                    }
+                  ]
+                }    
+    
+    /{mcu}/visualisation/{type}/{date}:
+      get:
+        description: Returns histogram/profile curve data for the specified MCU on the specified date, depending upon whether the type is set to 'histogram' or 'profile'
+        responses:
+          200:
+            body:
+              example: |
+                {
+                  "dno": "LUCYDEMO",
+                  "mcu": "000303230156",
+                  "datetime": "150904000000",
+                  "data": [
+                    {
+                      "phase": "L1",
+                      "range": "(200.0, 300.0) in 201",
+                      "labels": "200.0,200.5,201.0,201.5,202.0,202.5,203.0,203.5,204.0,204.5,205.0,205.5,206.0,206.5,207.0,207.5,208.0,208.5,209.0,209.5,210.0,210.5,211.0,211.5,212.0,212.5,213.0,213.5,214.0,214.5,215.0,215.5,216.0,216.5,217.0,217.5,218.0,218.5,219.0,219.5,220.0,220.5,221.0,221.5,222.0,222.5,223.0,223.5,224.0,224.5,225.0,225.5,226.0,226.5,227.0,227.5,228.0,228.5,229.0,229.5,230.0,230.5,231.0,231.5,232.0,232.5,233.0,233.5,234.0,234.5,235.0,235.5,236.0,236.5,237.0,237.5,238.0,238.5,239.0,239.5,240.0,240.5,241.0,241.5,242.0,242.5,243.0,243.5,244.0,244.5,245.0,245.5,246.0,246.5,247.0,247.5,248.0,248.5,249.0,249.5,250.0,250.5,251.0,251.5,252.0,252.5,253.0,253.5,254.0,254.5,255.0,255.5,256.0,256.5,257.0,257.5,258.0,258.5,259.0,259.5,260.0,260.5,261.0,261.5,262.0,262.5,263.0,263.5,264.0,264.5,265.0,265.5,266.0,266.5,267.0,267.5,268.0,268.5,269.0,269.5,270.0,270.5,271.0,271.5,272.0,272.5,273.0,273.5,274.0,274.5,275.0,275.5,276.0,276.5,277.0,277.5,278.0,278.5,279.0,279.5,280.0,280.5,281.0,281.5,282.0,282.5,283.0,283.5,284.0,284.5,285.0,285.5,286.0,286.5,287.0,287.5,288.0,288.5,289.0,289.5,290.0,290.5,291.0,291.5,292.0,292.5,293.0,293.5,294.0,294.5,295.0,295.5,296.0,296.5,297.0,297.5,298.0,298.5,299.0,299.5,300.0",                      
+                      "data": "0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,4,23,40,72,149,222,245,189,160,111,90,67,43,18,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+                    },
+                    {
+                      "phase": "L2",
+                      "range": "(200.0, 300.0) in 201",
+                      "labels": "200.0,200.5,201.0,201.5,202.0,202.5,203.0,203.5,204.0,204.5,205.0,205.5,206.0,206.5,207.0,207.5,208.0,208.5,209.0,209.5,210.0,210.5,211.0,211.5,212.0,212.5,213.0,213.5,214.0,214.5,215.0,215.5,216.0,216.5,217.0,217.5,218.0,218.5,219.0,219.5,220.0,220.5,221.0,221.5,222.0,222.5,223.0,223.5,224.0,224.5,225.0,225.5,226.0,226.5,227.0,227.5,228.0,228.5,229.0,229.5,230.0,230.5,231.0,231.5,232.0,232.5,233.0,233.5,234.0,234.5,235.0,235.5,236.0,236.5,237.0,237.5,238.0,238.5,239.0,239.5,240.0,240.5,241.0,241.5,242.0,242.5,243.0,243.5,244.0,244.5,245.0,245.5,246.0,246.5,247.0,247.5,248.0,248.5,249.0,249.5,250.0,250.5,251.0,251.5,252.0,252.5,253.0,253.5,254.0,254.5,255.0,255.5,256.0,256.5,257.0,257.5,258.0,258.5,259.0,259.5,260.0,260.5,261.0,261.5,262.0,262.5,263.0,263.5,264.0,264.5,265.0,265.5,266.0,266.5,267.0,267.5,268.0,268.5,269.0,269.5,270.0,270.5,271.0,271.5,272.0,272.5,273.0,273.5,274.0,274.5,275.0,275.5,276.0,276.5,277.0,277.5,278.0,278.5,279.0,279.5,280.0,280.5,281.0,281.5,282.0,282.5,283.0,283.5,284.0,284.5,285.0,285.5,286.0,286.5,287.0,287.5,288.0,288.5,289.0,289.5,290.0,290.5,291.0,291.5,292.0,292.5,293.0,293.5,294.0,294.5,295.0,295.5,296.0,296.5,297.0,297.5,298.0,298.5,299.0,299.5,300.0",
+                      "data": "Data: 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,11,32,103,131,169,177,284,202,96,78,65,60,26,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+                    },
+                    {
+                      "phase": "L3",
+                      "range": "(200.0, 300.0) in 201",
+                      "labels": "200.0,200.5,201.0,201.5,202.0,202.5,203.0,203.5,204.0,204.5,205.0,205.5,206.0,206.5,207.0,207.5,208.0,208.5,209.0,209.5,210.0,210.5,211.0,211.5,212.0,212.5,213.0,213.5,214.0,214.5,215.0,215.5,216.0,216.5,217.0,217.5,218.0,218.5,219.0,219.5,220.0,220.5,221.0,221.5,222.0,222.5,223.0,223.5,224.0,224.5,225.0,225.5,226.0,226.5,227.0,227.5,228.0,228.5,229.0,229.5,230.0,230.5,231.0,231.5,232.0,232.5,233.0,233.5,234.0,234.5,235.0,235.5,236.0,236.5,237.0,237.5,238.0,238.5,239.0,239.5,240.0,240.5,241.0,241.5,242.0,242.5,243.0,243.5,244.0,244.5,245.0,245.5,246.0,246.5,247.0,247.5,248.0,248.5,249.0,249.5,250.0,250.5,251.0,251.5,252.0,252.5,253.0,253.5,254.0,254.5,255.0,255.5,256.0,256.5,257.0,257.5,258.0,258.5,259.0,259.5,260.0,260.5,261.0,261.5,262.0,262.5,263.0,263.5,264.0,264.5,265.0,265.5,266.0,266.5,267.0,267.5,268.0,268.5,269.0,269.5,270.0,270.5,271.0,271.5,272.0,272.5,273.0,273.5,274.0,274.5,275.0,275.5,276.0,276.5,277.0,277.5,278.0,278.5,279.0,279.5,280.0,280.5,281.0,281.5,282.0,282.5,283.0,283.5,284.0,284.5,285.0,285.5,286.0,286.5,287.0,287.5,288.0,288.5,289.0,289.5,290.0,290.5,291.0,291.5,292.0,292.5,293.0,293.5,294.0,294.5,295.0,295.5,296.0,296.5,297.0,297.5,298.0,298.5,299.0,299.5,300.0",                      
+                      "data": "0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,3,7,44,110,94,137,238,268,175,120,77,73,68,21,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+                    }
+                  ]
+                }
+                
+    /{mcu}/dtf/{date}:
+      get:
+        description: Returns distance to fault waveforms for the specified date
+        responses:
+          200:
+            body:
+              example: |
+                {
+                  "dno": "LUCYDEMO",
+                  "mcu": "000123456789",
+                  "data": [
+                    {
+                      "datetime": "151007125600",
+                      "V1 DTF Waveform": "66944.0,9.59459376E8,8.92406786E8,8193.0,-385024.0,-778240.0,-1171456.0,-1564672.0,-1957888.0,-2351104.0,-2744320.0,-3137536.0,-3530752.0,-3923968.0,-4317184.0,-4710400.0,-5103616.0,-5496832.0",
+                      "V2 DTF Waveform": "66944.0,9.59459376E8,8.92406786E8,8193.0,-385024.0,-778240.0,-1171456.0,-1564672.0,-1957888.0,-2351104.0,-2744320.0,-3137536.0,-3530752.0,-3923968.0,-4317184.0,-4710400.0,-5103616.0,-5496832.0",
+                      "V3 DTF Waveform": "66944.0,9.59459376E8,8.92406786E8,8193.0,-385024.0,-778240.0,-1171456.0,-1564672.0,-1957888.0,-2351104.0,-2744320.0,-3137536.0,-3530752.0,-3923968.0,-4317184.0,-4710400.0,-5103616.0,-5496832.0",
+                      "I1 DTF Waveform": "66944.0,9.59459376E8,8.92406786E8,8193.0,-385024.0,-778240.0,-1171456.0,-1564672.0,-1957888.0,-2351104.0,-2744320.0,-3137536.0,-3530752.0,-3923968.0,-4317184.0,-4710400.0,-5103616.0,-5496832.0",
+                      "I2 DTF Waveform": "66944.0,9.59459376E8,8.92406786E8,8193.0,-385024.0,-778240.0,-1171456.0,-1564672.0,-1957888.0,-2351104.0,-2744320.0,-3137536.0,-3530752.0,-3923968.0,-4317184.0,-4710400.0,-5103616.0,-5496832.0",
+                      "I3 DTF Waveform": "66944.0,9.59459376E8,8.92406786E8,8193.0,-385024.0,-778240.0,-1171456.0,-1564672.0,-1957888.0,-2351104.0,-2744320.0,-3137536.0,-3530752.0,-3923968.0,-4317184.0,-4710400.0,-5103616.0,-5496832.0"                        
+                    },
+                    {
+                      "datetime": "151007220056",
+                      "V1 DTF Waveform": "66944.0,9.59459376E8,8.92406786E8,8193.0,-385024.0,-778240.0,-1171456.0,-1564672.0,-1957888.0,-2351104.0,-2744320.0,-3137536.0,-3530752.0,-3923968.0,-4317184.0,-4710400.0,-5103616.0,-5496832.0",
+                      "V2 DTF Waveform": "66944.0,9.59459376E8,8.92406786E8,8193.0,-385024.0,-778240.0,-1171456.0,-1564672.0,-1957888.0,-2351104.0,-2744320.0,-3137536.0,-3530752.0,-3923968.0,-4317184.0,-4710400.0,-5103616.0,-5496832.0",
+                      "V3 DTF Waveform": "66944.0,9.59459376E8,8.92406786E8,8193.0,-385024.0,-778240.0,-1171456.0,-1564672.0,-1957888.0,-2351104.0,-2744320.0,-3137536.0,-3530752.0,-3923968.0,-4317184.0,-4710400.0,-5103616.0,-5496832.0",
+                      "I1 DTF Waveform": "66944.0,9.59459376E8,8.92406786E8,8193.0,-385024.0,-778240.0,-1171456.0,-1564672.0,-1957888.0,-2351104.0,-2744320.0,-3137536.0,-3530752.0,-3923968.0,-4317184.0,-4710400.0,-5103616.0,-5496832.0",
+                      "I2 DTF Waveform": "66944.0,9.59459376E8,8.92406786E8,8193.0,-385024.0,-778240.0,-1171456.0,-1564672.0,-1957888.0,-2351104.0,-2744320.0,-3137536.0,-3530752.0,-3923968.0,-4317184.0,-4710400.0,-5103616.0,-5496832.0",
+                      "I3 DTF Waveform": "66944.0,9.59459376E8,8.92406786E8,8193.0,-385024.0,-778240.0,-1171456.0,-1564672.0,-1957888.0,-2351104.0,-2744320.0,-3137536.0,-3530752.0,-3923968.0,-4317184.0,-4710400.0,-5103616.0,-5496832.0"                        
+                    }
+                  ]
+                }
+    /{mcu}/waveform/{date}:
+      get:
+        description: Returns distance to fault waveforms for the specified date
+        responses:
+          200:
+            body:
+              example: |
+                {
+                  "dno": "LUCYDEMO",
+                  "mcu": "000123456789",
+                  "data": [
+                    {
+                      "datetime": "151007125600",
+                      "data": "E1D2C3B457415645480C7C0200000124474B32333030303032335032364530305353454C434F5354303031313131383636303437020C313831303038313331353431FF02FF00000100B065450000CC430000CA430080CB430080CB430080CC430080CC430080CF430080D5430080E1430080F1430000024400800B440000174400402344008032440080474400C05E4400C073440080834400C08C44006096440040A04400C0A94400C0B24400C0BA4400C0C24400C0CA440040D34400C0DB4400A0E44400A0ED4400C0034500A0004500F0054500500B4500A0104500E0154500201B45006020450070254500602A4500202F4500D033450050384500B03C4500D0404500E0444500D0484500704C4500F04F45008053450090564500C0594500C05C4500705F4500F0614500C06345007064450000654500306545007065450070654500A065450080CB4300C0654500B0654500C0654500B065450090654500806545002065450050644500D0624500B0604500805E4500F05B4500305945002056450050524500F04C45007047450020424500403D4500B0384500F0334500102F4500402A4500D0254500E0214500D01D4500E0194500A015450070114500F00C45007008450020F7440080FD440000F3440020E8440060DD440000D3440040C8440000BE4400A0B34400E0A9440000A04400C0964400608D44002085440040794400C068440000594400004A4400C03C4400802E440040214400801544004009440080FC430000E9430080D9430080D4430080D1430080CE430000CE430080CC430000CB4300B065450000CB430000CB430080CA430080CB430000CC430000CC430080CF430000D5430000E1430080F1430000024400000C440040174400402344004032440080474400C05E440080734400A0834400C08C44006096440020A04400A0A9440080B24400C0BA4400C0C24400C0CA440020D34400A0DB440080E4440060ED4400C0034500B0004500E0054500300B4500B0104500D0154500201B45004020450060254500602A4500302F4500E033450080384500C03C4500E0404500E0444500D0484500704C4500F04F450070534500A0564500C0594500B05C4500805F4500F0614500C063450080644500F0644500306545007065450070654500A065450080CB4300B0654500B0654500A0654500B065450090654500606545002065450060644500D0624500B0604500805E4500005C4500105945000056450050524500F04C45007047450020424500403D4500B0384500E0334500002F4500402A4500E0254500C0214500E01D4500E0194500C015450070114500000D4500A008450020F74400A0FD440040F3440080E84400C0DD440000D3440040C84400C0BD4400E0B34400A0A9440000A04400C0964400808D4400C0844400C0784400C068440040594400404A4400403C4400402E4400C0214400001544008009440080FC430000E9430000DA430080D4430000D2430000CF430080CD430080CC430080CB4300009C4400A02C4500F0274500C0234500C01F4500B01B4500A017450090134500500F4500C00A45001006450040014500C0F8440080EE4400C0E34400E0D84400E0CD440000C44400C0B9440000B04400C0A64400409D4400A0934400C08A4400208244000075440040664400C056440000484400003B4400002F44004023440030594500000E44004005440000F9430080EF430000EB430000E8430000E6430080E5430080E3430000E3430000E3430000E1430000E1430000E1430000E2430080E3430080E4430000E7430080ED430000FB4300C0044400C00D44000017440080224400003044004042440000574400006C440000804400C0894400C09244003031450060A5440060AE440040B7440040BF440040C7440040CF440060D7440040E0440080E94400C0F2440000FC44001003450040084500900D45001013450050184500701D45006022450020274500102C4500C030450080354500E0394500003E450010424500C045450080494500104D450080504500605345005056450000184400B05B4500D05D4500D05F450040614500B06145001062450040624500A0624500C0624500D0624500F062450000634500E0624500E0624500E0624500C0624500806245003062450050614500B05F4500C05D4500905B45003059450040564500E0524500704E45004049450000444500003F4500503A4500B0354500009C4400A02C450010284500C0234500A01F4500A01B4500B017450070134500400F4500C00A45001006450040014500E0F8440080EE4400A0E3440000D9440000CE4400E0C34400E0B9440020B04400C0A64400009D440060934400C08A44004082440080744400406544000057440000484400C03A4400002F44004023440020594500C00D44008005440000FA430000EF430080EB430080E8430000E7430080E4430080E2430080E2430000E1430080E1430000E2430080E1430080E2430080E2430000E4430080E6430000EE430080FA4300C0044400000E4400C017440040234400003044004042440040574400406C440020804400C0894400C09244002031450040A5440080AE440000B7440020BF440020C7440060CF4400A0D7440040E0440060E9440080F2440040FC44001003450020084500900D45000013450040184500501D45006022450030274500E02B4500D030450080354500F0394500203E450000424500D045450080494500304D450070504500505345005056450040174400A05B4500C05D4500D05F450030614500B0614500006245006062450080624500B0624500D062450000634500F0624500E0624500F0624500E0624500C0624500906245003062450050614500B05F4500B05D4500A05B45002059450020564500C0524500704E45004049450010444500103F4500403A4500C035450040364500703A4500A03E45009042450090464500604A4500E04D4500505145006054450080574500A05A4500605D4500C05F4500B0614500C0624500106345006063450090634500B0634500C0634500F0634500F0634500E0634500F0634500E0634500E0634500A06345005063450090624500E0604500E05E4500005D4500D05A4500305845001055450010514500F04B4500E046450040424500B03D45002039450040344500702F4500E02A4500A0264500B0224500C01E4500C01A45009016450050124500300E4500B00945001005450020004500E0F54400C0EB4400E0E0440020D6440020CC440020C2440080B8440060AE4400C0A44400209B4400209244006089440040814400807244004062440040534400C044440000374400002B4400001E440000124400C006440080FB430080EC430080E4430000E1430080DF430000DD430000DB430080DA430080DA430000DA430080D9430080D9430080DA430080DA430080DB430080DD430080E2430080F0430080004400C0074400C0104400401B44000028440040374400004C44004060440040734400C0824400208C4400A0954400609F440060A8440020B1440040B9440000C1440020C9440060D14400E0D9440080E2440040EB4400C0F44400A0FE440050044500A0094500000F45005014450050194500401E45003023450000284500D02C45009031450030364500703A4500903E45009042450080464500604A4500D04D4500505145006054450090574500B05A4500805D4500C05F4500A0614500C0624500106345006063450080634500B0634500B0634500E0634500E0634500E0634500E0634500D0634500D0634500A06345005063450090624500E0604500D05E4500105D4500E05A450030584500F054450020514500004C4500E046450030424500B03D45001039450050344500902F4500002B4500C0264500A0224500C01E4500A01A45007016450050124500200E4500C0094500100545001000450020F64400A0EB4400C0E0440020D6440020CC440040C2440040B8440080AE4400E0A44400609B44000092440060894400008144008072440000624400C05244004045440040374400C02A4400401E440000124400C006440000FA430000EB430000E4430000E1430080DF430080DD430080DB430000DB430080D9430000D9430080D9430000DA430080D9430000DB430000DC430080DE430080E2430000F14300C000440040074400C0104400401B44000028440080374400C04B4400006044000073440000834400208C4400C0954400A09F4400A0A8440020B1440040B9440020C1440060C9440080D14400E0D9440080E2440080EB4400A0F44400C0FE440060044500B0094500100F45005014450070194500401E45002023450010284500F02C4500B03145"
+                    },
+                    {
+                      "datetime": "151007220056",
+                      "data": "E1D2C3B457415645480C7C0200000124474B32333030303032335032364530305353454C434F5354303031313131383636303437020C313831303038313331353431FF02FF00000100B065450000CC430000CA430080CB430080CB430080CC430080CC430080CF430080D5430080E1430080F1430000024400800B440000174400402344008032440080474400C05E4400C073440080834400C08C44006096440040A04400C0A94400C0B24400C0BA4400C0C24400C0CA440040D34400C0DB4400A0E44400A0ED4400C0034500A0004500F0054500500B4500A0104500E0154500201B45006020450070254500602A4500202F4500D033450050384500B03C4500D0404500E0444500D0484500704C4500F04F45008053450090564500C0594500C05C4500705F4500F0614500C06345007064450000654500306545007065450070654500A065450080CB4300C0654500B0654500C0654500B065450090654500806545002065450050644500D0624500B0604500805E4500F05B4500305945002056450050524500F04C45007047450020424500403D4500B0384500F0334500102F4500402A4500D0254500E0214500D01D4500E0194500A015450070114500F00C45007008450020F7440080FD440000F3440020E8440060DD440000D3440040C8440000BE4400A0B34400E0A9440000A04400C0964400608D44002085440040794400C068440000594400004A4400C03C4400802E440040214400801544004009440080FC430000E9430080D9430080D4430080D1430080CE430000CE430080CC430000CB4300B065450000CB430000CB430080CA430080CB430000CC430000CC430080CF430000D5430000E1430080F1430000024400000C440040174400402344004032440080474400C05E440080734400A0834400C08C44006096440020A04400A0A9440080B24400C0BA4400C0C24400C0CA440020D34400A0DB440080E4440060ED4400C0034500B0004500E0054500300B4500B0104500D0154500201B45004020450060254500602A4500302F4500E033450080384500C03C4500E0404500E0444500D0484500704C4500F04F450070534500A0564500C0594500B05C4500805F4500F0614500C063450080644500F0644500306545007065450070654500A065450080CB4300B0654500B0654500A0654500B065450090654500606545002065450060644500D0624500B0604500805E4500005C4500105945000056450050524500F04C45007047450020424500403D4500B0384500E0334500002F4500402A4500E0254500C0214500E01D4500E0194500C015450070114500000D4500A008450020F74400A0FD440040F3440080E84400C0DD440000D3440040C84400C0BD4400E0B34400A0A9440000A04400C0964400808D4400C0844400C0784400C068440040594400404A4400403C4400402E4400C0214400001544008009440080FC430000E9430000DA430080D4430000D2430000CF430080CD430080CC430080CB4300009C4400A02C4500F0274500C0234500C01F4500B01B4500A017450090134500500F4500C00A45001006450040014500C0F8440080EE4400C0E34400E0D84400E0CD440000C44400C0B9440000B04400C0A64400409D4400A0934400C08A4400208244000075440040664400C056440000484400003B4400002F44004023440030594500000E44004005440000F9430080EF430000EB430000E8430000E6430080E5430080E3430000E3430000E3430000E1430000E1430000E1430000E2430080E3430080E4430000E7430080ED430000FB4300C0044400C00D44000017440080224400003044004042440000574400006C440000804400C0894400C09244003031450060A5440060AE440040B7440040BF440040C7440040CF440060D7440040E0440080E94400C0F2440000FC44001003450040084500900D45001013450050184500701D45006022450020274500102C4500C030450080354500E0394500003E450010424500C045450080494500104D450080504500605345005056450000184400B05B4500D05D4500D05F450040614500B06145001062450040624500A0624500C0624500D0624500F062450000634500E0624500E0624500E0624500C0624500806245003062450050614500B05F4500C05D4500905B45003059450040564500E0524500704E45004049450000444500003F4500503A4500B0354500009C4400A02C450010284500C0234500A01F4500A01B4500B017450070134500400F4500C00A45001006450040014500E0F8440080EE4400A0E3440000D9440000CE4400E0C34400E0B9440020B04400C0A64400009D440060934400C08A44004082440080744400406544000057440000484400C03A4400002F44004023440020594500C00D44008005440000FA430000EF430080EB430080E8430000E7430080E4430080E2430080E2430000E1430080E1430000E2430080E1430080E2430080E2430000E4430080E6430000EE430080FA4300C0044400000E4400C017440040234400003044004042440040574400406C440020804400C0894400C09244002031450040A5440080AE440000B7440020BF440020C7440060CF4400A0D7440040E0440060E9440080F2440040FC44001003450020084500900D45000013450040184500501D45006022450030274500E02B4500D030450080354500F0394500203E450000424500D045450080494500304D450070504500505345005056450040174400A05B4500C05D4500D05F450030614500B0614500006245006062450080624500B0624500D062450000634500F0624500E0624500F0624500E0624500C0624500906245003062450050614500B05F4500B05D4500A05B45002059450020564500C0524500704E45004049450010444500103F4500403A4500C035450040364500703A4500A03E45009042450090464500604A4500E04D4500505145006054450080574500A05A4500605D4500C05F4500B0614500C0624500106345006063450090634500B0634500C0634500F0634500F0634500E0634500F0634500E0634500E0634500A06345005063450090624500E0604500E05E4500005D4500D05A4500305845001055450010514500F04B4500E046450040424500B03D45002039450040344500702F4500E02A4500A0264500B0224500C01E4500C01A45009016450050124500300E4500B00945001005450020004500E0F54400C0EB4400E0E0440020D6440020CC440020C2440080B8440060AE4400C0A44400209B4400209244006089440040814400807244004062440040534400C044440000374400002B4400001E440000124400C006440080FB430080EC430080E4430000E1430080DF430000DD430000DB430080DA430080DA430000DA430080D9430080D9430080DA430080DA430080DB430080DD430080E2430080F0430080004400C0074400C0104400401B44000028440040374400004C44004060440040734400C0824400208C4400A0954400609F440060A8440020B1440040B9440000C1440020C9440060D14400E0D9440080E2440040EB4400C0F44400A0FE440050044500A0094500000F45005014450050194500401E45003023450000284500D02C45009031450030364500703A4500903E45009042450080464500604A4500D04D4500505145006054450090574500B05A4500805D4500C05F4500A0614500C0624500106345006063450080634500B0634500B0634500E0634500E0634500E0634500E0634500D0634500D0634500A06345005063450090624500E0604500D05E4500105D4500E05A450030584500F054450020514500004C4500E046450030424500B03D45001039450050344500902F4500002B4500C0264500A0224500C01E4500A01A45007016450050124500200E4500C0094500100545001000450020F64400A0EB4400C0E0440020D6440020CC440040C2440040B8440080AE4400E0A44400609B44000092440060894400008144008072440000624400C05244004045440040374400C02A4400401E440000124400C006440000FA430000EB430000E4430000E1430080DF430080DD430080DB430000DB430080D9430000D9430080D9430000DA430080D9430000DB430000DC430080DE430080E2430000F14300C000440040074400C0104400401B44000028440080374400C04B4400006044000073440000834400208C4400C0954400A09F4400A0A8440020B1440040B9440020C1440060C9440080D14400E0D9440080E2440080EB4400A0F44400C0FE440060044500B0094500100F45005014450070194500401E45002023450010284500F02C4500B03145"
+                    }
+                  ]
+                }
+
+    /{mcu}/available/{year}:
+      get:
+        description: Returns the dates in which periodic data is available in the given year
+        responses:
+          200:
+            body:
+              example: |
+                {
+                  "dno": "LUCYDEMO",
+                  "mcu": "000123456789",
+                  "year": "2016",
+                  "1":
+                    [
+                      "1",
+                      "2",
+                      "3",
+                      "4",
+                      "5",
+                      "6"
+                    ],
+                    "2":
+                    [
+                    ],
+                    "3":
+                    [
+                    ],
+                    "4":
+                    [
+                    ],
+                    "5":
+                    [
+                    ],
+                    "6":
+                    [
+                    ],
+                    "7":
+                    [
+                    ],
+                    "8":
+                    [
+                    ],
+                    "9":
+                    [
+                    ],
+                    "10":
+                    [
+                    ],
+                    "11":
+                    [
+                    ],
+                    "12":
+                    [
+                    ]
+                }               
+      /{month}:
+        get:
+          description: Returns the dates in which periodic data is available in the given month
+          responses:
+            200:
+              body:
+                example: |
+                  {
+                    "dno": "LUCYDEMO",
+                    "mcu": "000303230156",
+                    "year": "2016",
+                    "1":
+                    [
+                      "1",
+                      "2",
+                      "3",
+                      "4",
+                      "5",
+                      "6"
+                    ]
+                  }
+                  
+    /alertemailaddress:
+      get:
+        description: Used to retrieve all of the alert email addresses for the given DNO
+        responses:
+          200:
+            body:
+              example: |
+                {
+                  "dno": "LUCYDEMO",
+                  "emailaddresses": [
+                    "jordon.griffiths@lucyelectric.com",
+                    "stuart.brady@lucyelectric.com"
+                  ]
+                }
+                  
+      /{username}:
+        get:
+          description: Used to retrieve the email address stored for the given username under the given DNO
+          responses:
+            200:
+              body:
+                example: |
+                  {
+                    "dno": "LUCYDEMO",
+                    "username": "jordongriffiths",
+                    "emailaddress": "jordon.griffiths@lucyelectric.com"
+                  }
+        post:
+          description: Used to update the email address associated with the given username. 'success' or 'error' is returned to indicate that the that the request was successful or invalid
+          body:
+            application/json:
+              example: |
+                {
+                  "emailaddress": "jordon.griffiths@lucyelectric.com"
+                }   
+          responses:
+            200:
+              body:
+                example: |
+                  success
+                
+        delete:
+          description: Used to remove the given email address associated with the given username. 'success' or 'error' is returned to indicate that the that the request was successful or invalid 
+          responses:
+            200:
+              body:
+                example: |
+                  success
+        /{state}:
+          post:
+            description: Used to enable or disable the email address associated with the given username. 'success' or 'error' is returned to indicate that the that the request was successful or invalid 
+            responses:
+              200:
+                body:
+                  example: |
+                    success
+                  
+    /alertphonenumber:
+      get:
+        description: Used to retrieve the all of the alert phone numbers for the given DNO
+        responses:
+          200:
+            body:
+              example: |
+                {
+                  "dno": "LUCYDEMO",
+                  "phonenumbers": [
+                    "+447824137850",
+                    "+447824137851"
+                  ]
+                }
+      /{username}:
+        get:
+          description: Used to retrieve the alert phone number list for the given DNO
+          responses:
+            200:
+              body:
+                example: |
+                  {
+                    "dno": "LUCYDEMO",
+                    "username": "jordongriffiths",
+                    "phonenumber": "+447824137850"
+                  }
+        post:
+          description: Used to update the alert phone number list for the given DNO. 'success' or 'error' is returned to indicate that the that the request was successful or invalid
+          body:
+            application/json:
+              example: |
+                {
+                  "phonenumber": "+447824137850"
+                }   
+          responses:
+            200:
+              body:
+                example: |
+                  success
+                
+        delete:
+          description: Used to remove the given phone numbers from the alert phone number list for the given DNO. 'success' or 'error' is returned to indicate that the that the request was successful or invalid
+          responses:
+            200:
+              body:
+                example: |
+                  success
+        /{state}:
+          post:
+            description: Used to enable or disable the phone number associated with the given username. 'success' or 'error' is returned to indicate that the that the request was successful or invalid 
+            responses:
+              200:
+                body:
+                  example: |
+                    success
+    /{mcu}/resetindicator/{indicator}:
+      post:
+        description: Used to reset the given indicator
+        responses:
+          200:
+            body:
+              example: |
+                {
+                  "message": "success"
+                }
+    /{mcu}/setindicator/{indicator}:
+      post:
+        description: Used to specifically set the given indicator
+        body:
+          example: |
+            {
+              "indicatorValue": "good"
+            }
+        responses:
+          200:
+            body:
+              example: |
+                {
+                  "message": "success"
+                }

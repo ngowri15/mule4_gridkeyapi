@@ -1,0 +1,359 @@
+#%RAML 0.8
+title: GridKey API
+version: v2
+baseUri: https://api.gridkey.cloud
+mediaType: application/json
+/v2:
+  /generateAccessToken:
+    post:
+      description: Generates an access token for authentication
+      responses:
+        200:
+          body:
+            example: Generated Token
+     
+  /{dno}:
+    get:
+      description: Lists the MCUs available for the specified DNO along with any extra information about the specified DNO   
+      responses:
+        200:
+          body:
+            example: |
+              {
+                "dno": "LUCYDEMO",
+                "mcus": [
+                  {
+                    "name": "TestMCU",
+                    "description": "MCU used for Testing",
+                    "unit-type": "gridkey-mcu520",
+                    "unit-sn": "000123456789"
+                    
+                  },
+                  {
+                    "name": "MCUTest",
+                    "description": "Another MCU used for Testing",
+                    "unit-type": "gridkey-mcu520",
+                    "unit-sn": "000987654321"
+                  }
+                ]
+              }
+              
+    /dashboard:
+      get:
+        description: Gets the dashboard data for the DNO for all MCUs. This includes measurement snapshots of the latest decoded data for each MCU
+        responses:
+          200:
+            body:
+              example: |
+                {
+                  "dno": "LUCYDEMO",
+                  "mcus": [
+                    {
+                      "unit-sn": "000443111432",
+                      "busbar-l1-voltage-mean": "245.5",
+                      "busbar-l2-voltage-mean": "243.2",
+                      "busbar-l3-voltage-mean": "233.1",
+                      "busbar-l1-current-mean": "23.3",
+                      "busbar-l2-current-mean": "90.4",
+                      "busbar-l3-current-mean": "14.9" 
+                    },
+                    {
+                      "unit-sn": "000452141142",
+                      "busbar-l1-voltage-mean": "235.5",
+                      "busbar-l2-voltage-mean": "253.2",
+                      "busbar-l3-voltage-mean": "243.1",
+                      "busbar-l1-current-mean": "33.2",
+                      "busbar-l2-current-mean": "60.9",
+                      "busbar-l3-current-mean": "84.9"
+                    },
+                    {
+                      "unit-sn": "000543122562",
+                      "busbar-l1-voltage-mean": "235.1",
+                      "busbar-l2-voltage-mean": "233.3",
+                      "busbar-l3-voltage-mean": "225.6",
+                      "busbar-l1-current-mean": "13.1",
+                      "busbar-l2-current-mean": "50.0",
+                      "busbar-l3-current-mean": "184.4"
+                    }
+                  ]                
+                }
+                
+      /{mcu}:
+        get:
+          description: Gets the dashboard data for the specific MCU in a DNO. This includes measurement snapshots of the latest decoded data
+          responses:
+            200:
+              body:
+                example: |
+                  {
+                    "dno": "LUCYDEMO",
+                    "unit-sn": "000443111432",
+                    "busbar-l1-voltage-mean": "245.5",
+                    "busbar-l2-voltage-mean": "243.2",
+                    "busbar-l3-voltage-mean": "233.1",
+                    "busbar-l1-current-mean": "23.3",
+                    "busbar-l2-current-mean": "90.4",
+                    "busbar-l3-current-mean": "14.9" 
+                  }                
+              
+    /{mcu}:
+      get:
+        description: Gets details about the MCU specified
+        responses:
+          200:
+            body:
+              example: |
+                {
+                  "dno": "LUCYDEMO",
+                  "name": "TestMCU",
+                  "description": "MCU used for Testing",
+                  "unit-type": "gridkey-mcu520",
+                  "unit-sn": "000123456789"
+                }
+
+    /{mcu}/decoded/{start}/{end}/{params}:
+      get:
+        description:  Returns all of the specified decoded message parameters between the start and end time specified. Format of start and end times are as follows - YYMMDDhhmmss 
+        responses:
+          200:
+            body:              
+                example: |
+                  {
+                    "dno": "LUCYDEMO",
+                    "mcu": "000123456789",
+                    "timeStart": "20140908102900",
+                    "timeEnd": "20140908103000",
+                    "data": [
+                      {
+                        "datetime": "140905000000",
+                        "Busbar L1 Mean Voltage": "239.8",                       
+                        "Busbar L2 Mean Voltage": "239.8"
+                      },
+                      {
+                        "datetime": "140906000000",
+                        "Busbar L1 Mean Voltage": "239.8",                       
+                        "Busbar L2 Mean Voltage": "239.8"
+                      }
+                    ]
+                  } 
+
+    /{mcu}/raw/{date}/{type}:
+      get:
+        description: Returns the specified raw message. Which message is returned depends on the type supplied i.e. 'statistical', 'instantaneous', 'user', 'alert' etc. In addition to the raw 'data' section, the 'dno', 'mcu' and message 'type' are returned in separate fields. To get the most recent config message in its raw form, use the alternative API call for config messages i.e. '/{mcu}/config/{config-type}/now/raw'
+        responses:
+          200:
+            body:
+              example: |
+                {
+                  "dno": "LUCYDEMO",
+                  "mcu": "000303230156",
+                  "type": "statistical",
+                  "datetime": "140905000000",
+                  "data":[  
+                    {
+                      "E1D2C3B48001000084017C024B54012441503530303530393635303030303034454E57504F574552303030333033323330303035020C313331303130303030303030FF02F79F090801003C0000341A000812000000000000000001000100FA00FA00FA00045E0000730676067106F4FFF6FFCEFFEEFFFFFF24000000FFFFFFFF01000000CC3DDD3DB83D040004000400870000002D0000000400000000000000CD3DE33DB33D14001600120051020000AFFEFFFF0A000000FAFFFFFF19002D0007000000065E0100F3FFF8FFCBFF9204F1FFFFFF27000000FFFFFFFF010000000000000003001D000000B014870000002F0000000300000000000000000000001800220015002C1353020000B2FEFFFF0A000000FAFFFFFF000066110B001F0006000000065E0200FEFF0000EFFF0C0900000000000000000000000000000000000000000A00340000001C030B000000FAFFFFFF000000000000000000000000FFFF0000F0FF2215000000000000000000000000000000000000000004001A0000000000",
+                      "E1D2C3B48001000084017C024220012441503530303530393635303030303034454E57504F574552303030333033323330303035020C313331303130303234373030FF029EA0090801003C0000341A000812000000000000000001000100EB00EB00EB00045E00006E0673066D06F4FFF4FFF4FFF1FFFFFF26000000FFFFFFFF00000000863D993D773D040004000400840000002E0000000300000001000000893D9C3D7B3D150016001400AE020000E10000000B000000040000001500580000000000065E0100F3FFF6FFE9FF4408F3FFFFFF29000000FFFFFFFF000000000000000004001C0000001E15840000002F00000002000000010000000000000017001C001600DE02B0020000E60000000B00000004000000000000000600150000000000065E0200FEFF0000EFFF0C0900000000000000000000000000000000000000000A00340000001C030B000000FAFFFFFF000000000000000000000000FFFF0000F0FF2215000000000000000000000000000000000000000004001A0000000000"
+                    }
+                  ]
+                }
+
+    /{mcu}/available/{year}:
+      get:
+        description: Returns the dates in which periodic data is available in the given year
+        responses:
+          200:
+            body:
+              example: |
+                {
+                  "dno": "LUCYDEMO",
+                  "mcu": "000123456789",
+                  "year": "2016",
+                  "1":
+                    [
+                      "1",
+                      "2",
+                      "3",
+                      "4",
+                      "5",
+                      "6"
+                    ],
+                    "2":
+                    [
+                    ],
+                    "3":
+                    [
+                    ],
+                    "4":
+                    [
+                    ],
+                    "5":
+                    [
+                    ],
+                    "6":
+                    [
+                    ],
+                    "7":
+                    [
+                    ],
+                    "8":
+                    [
+                    ],
+                    "9":
+                    [
+                    ],
+                    "10":
+                    [
+                    ],
+                    "11":
+                    [
+                    ],
+                    "12":
+                    [
+                    ]
+                }
+                               
+      /{month}:
+        get:
+          description: Returns the dates in which periodic data is available in the given month
+          responses:
+            200:
+              body:
+                example: |
+                  {
+                    "dno": "LUCYDEMO",
+                    "mcu": "000303230156",
+                    "year": "2016",
+                    "1":
+                    [
+                      "1",
+                      "2",
+                      "3",
+                      "4",
+                      "5",
+                      "6"
+                    ]
+                  }
+                 
+    /summary/{start}/{end}:                 
+        get:
+          description: Returns the json string with summary of DTF events.
+          responses:
+            200:
+              body:
+                example: |
+                  {
+                    "dno": "1212",
+                    "summary": [
+                      {
+                        "Total Events": "2632",
+                        "feeder1": "41",
+                        "feeder2": "142",
+                        "feeder3": "156",
+                        "feeder4": "2293",
+                        "feeder5": "0",
+                        "substation name": "Victoria Rd Dist."
+                      },
+                      {
+                        "Total Events": "6",
+                        "feeder1": "0",
+                        "feeder2": "1",
+                        "feeder3": "4",
+                        "feeder4": "1",
+                        "feeder5": "0",
+                        "substation name": "BoundaryRd#2"
+                      }
+                      ]
+                  }                 
+    /{mcu}/histogram/{start}/{end}:                 
+      get:
+        description: Returns the json string with base64 string representating image of DTF histograms.
+        responses:
+          200:
+            body:
+              example: |
+                {
+                  "mcu": "104207194030",                  
+                  "substation-name": "Victoria Rd Dist",
+                  "base64": "base64 string of image"                  
+                }
+    /{mcu}/histogramV1/{start}/{end}/{param}:                 
+      get:
+        description: Returns the json string with base64 string representating image of DTF histograms.
+        responses:
+          200:
+            body:
+              example: |
+                {
+                    "mcu": "104207194030",
+                    "substation-name": "Victoria Rd Dist.",
+                    "remarks": "success",
+                    "base64": [
+                      "base64 file string"
+                    ]
+                }
+                
+    /{mcu}/chronologyplot/{start}/{end}:                 
+          get:
+            description: Returns the json string with base64 string representating image of DTF histograms.
+            responses:
+              200:
+                body:
+                  example: |
+                    {
+                      "mcu": "104207194030",                  
+                      "substation-name": "Victoria Rd Dist",
+                      "base64": "base64 string of image"                  
+                    } 
+    /{mcu}/reports:                 
+          get:
+            description: Returns the json response with all the report details of specific DNO .
+            responses:
+              200:
+                body:
+                  example: |
+                    {
+                        "Quaterlyreports": {
+                               "FILE NAME" : "URL"
+                               "FILE NAME" : "URL"
+                               "FILE NAME" : "URL"
+                               "FILE NAME" : "URL"
+                         },
+                         "Ondemandreports":[
+                                 "reporttype" : {
+                                     "FILE NAME" : "URL"
+                                  },
+                                  "reporttype" : {
+                                     "FILE NAME" : "URL"
+                                  }
+                         ] 
+                    } 
+                    
+    /{mcu}/generatereport/{start}/{end}/{param}:                 
+            get:
+              description: Synchronously Trigger the reports Execution and return the response.
+              responses:
+                200:
+                  body:
+                    example: |
+                      {
+                        "status": "success"                
+                      } 
+    /{mcu}/prediction/{start}/{end}/{param}:                 
+            get:
+              description: End point to execute and collect all prediction response from py scripts.
+              responses:
+                200:
+                  body:
+                    example: |
+                      {
+                        "status": "success"                
+                      }                 
+                     
+  /downloadreports/{param}:                 
+          get:
+            description: Returns the PDF report as per the specified DNO and MCU.
+            responses:
+              200:
+                body:
+                     example: PDF file download             
+                                    
